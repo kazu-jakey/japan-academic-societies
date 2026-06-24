@@ -1,0 +1,2979 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日本の学会ツリーマップ ― 3部 / 30分野</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+  :root{
+    --bg: #FAFAF8;
+    --panel: #FFFFFF;
+    --line: #E4E2DD;
+    --line-strong: #D2CFC8;
+    --ink: #181818;
+    --ink-dim: #6E6C68;
+    --ink-faint: #A6A39C;
+    --accent: #2B3A55;
+  }
+  *{ box-sizing: border-box; }
+  html,body{
+    margin:0; padding:0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Zen Kaku Gothic New", "Hiragino Sans", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  #app{ max-width: 1320px; margin: 0 auto; padding: 56px 28px 70px; }
+
+  header{ margin-bottom: 36px; }
+  .eyebrow{
+    display: block;
+    font-size: 11px; letter-spacing: .22em; color: var(--ink-faint);
+    font-weight: 500; margin-bottom: 18px; text-transform: uppercase;
+  }
+  h1{
+    font-family: inherit;
+    font-weight: 300;
+    font-size: clamp(28px, 3.6vw, 40px);
+    margin: 0 0 14px;
+    letter-spacing: .01em;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+  .sub{ color: var(--ink-dim); font-size: 13.5px; line-height: 1.9; max-width: 760px; font-weight: 400; }
+  .sub b{ color: var(--ink); font-weight: 700; }
+  .stat-row{ display:flex; gap: 36px; margin-top: 32px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 24px; }
+  .stat{ min-width: 90px; }
+  .stat .num{ font-family: inherit; font-size: 26px; font-weight: 300; color: var(--ink); line-height:1.15; letter-spacing: -.01em; }
+  .stat .lbl{ font-size: 10.5px; color: var(--ink-faint); letter-spacing: .08em; margin-top: 5px; font-weight: 500; text-transform: uppercase; }
+
+  /* Tabs */
+  .tabs{ display:flex; gap: 4px; margin: 28px 0 0; flex-wrap: wrap; align-items:center; }
+  .tabs.sub{ margin: 16px 0 22px; }
+  .tab-btn{
+    background: transparent; border: 1px solid transparent; color: var(--ink-dim);
+    padding: 9px 18px; border-radius: 7px; font-size: 13px; font-weight: 500; cursor: pointer;
+    font-family: inherit; transition: background .15s, color .15s; letter-spacing: .01em;
+  }
+  .tab-btn.small{ padding: 7px 14px; font-size: 11.5px; }
+  .tab-btn.active{ background: var(--ink); color: #fff; }
+  .tab-btn:hover:not(.active){ background: var(--line); color: var(--ink); }
+  .tab-hint{ font-size: 11.5px; color: var(--ink-faint); align-self:center; margin-left: 8px; font-weight: 400; }
+
+  .pill{
+    background: transparent; border: 1px solid var(--line); color: var(--ink-dim);
+    padding: 6px 13px 6px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 500; cursor: pointer;
+    font-family: inherit; transition: border-color .15s, color .15s; display:flex; align-items:center; gap: 7px;
+  }
+  .pill .dot{ width: 8px; height: 8px; border-radius: 2px; flex-shrink:0; }
+  .pill .badge{ color: var(--ink-faint); font-size: 10px; }
+  .pill.active{ color: var(--ink); border-color: var(--ink); background: var(--bg); }
+  .pill.active .badge{ color: var(--ink-dim); }
+  .pill:hover:not(.active){ border-color: var(--ink-dim); color: var(--ink); }
+
+  #breadcrumb{ font-size: 12px; color: var(--ink-faint); margin-bottom: 14px; display:none; font-weight: 400; }
+  #breadcrumb a{ color: var(--ink); cursor:pointer; text-decoration: none; font-weight: 500; border-bottom: 1px solid var(--line-strong); }
+  #breadcrumb a:hover{ border-color: var(--ink); }
+  #breadcrumb .sep{ margin: 0 8px; opacity:.4; }
+  #breadcrumb .cur{ color: var(--ink-dim); font-weight:400; }
+
+
+  .layout{ display:flex; gap: 28px; align-items: flex-start; }
+  .mainpane{ flex: 1; min-width: 0; }
+  .sidepane{ width: 272px; flex-shrink: 0; }
+
+  .controls{ display:flex; gap: 10px; margin-bottom: 16px; align-items: center; }
+  #search{
+    flex: 1; background: var(--panel); border: 1px solid var(--line); color: var(--ink);
+    padding: 10px 14px; border-radius: 7px; font-size: 13px; font-family: inherit; outline: none;
+    font-weight: 400;
+  }
+  #search::placeholder{ color: var(--ink-faint); font-weight: 400; }
+  #search:focus{ border-color: var(--ink); }
+  #resetBtn{
+    background: transparent; border: 1px solid var(--line); color: var(--ink-dim);
+    padding: 10px 16px; border-radius: 7px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit;
+    transition: border-color .15s, color .15s; white-space: nowrap;
+  }
+  #resetBtn:hover{ border-color: var(--ink); color: var(--ink); }
+
+  #chart-wrap{
+    background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+    padding: 1px; position: relative;
+  }
+  svg{ display:block; width: 100%; height: auto; }
+
+  .cell rect.leaf{ stroke: var(--panel); stroke-width: 2px; cursor: pointer; transition: opacity .15s, filter .15s; }
+  .cell rect.leaf:hover{ filter: brightness(0.95); }
+  .cell text{ pointer-events: none; fill: var(--ink); font-family: inherit; }
+  .cell text.lbl-name{ font-weight: 500; }
+  .cell text.lbl-val{ fill: rgba(24,24,24,0.55); font-weight: 400; }
+
+  .grouphead{ cursor: pointer; }
+  .grouphead text{ fill: #fff; font-weight: 500; pointer-events: none; letter-spacing: .02em; }
+  .grouphead text.cnt{ fill: rgba(255,255,255,0.72); font-weight: 400; pointer-events: none; }
+
+  .dim{ opacity: .12 !important; }
+
+  #tooltip{
+    position: fixed; pointer-events: none; z-index: 50;
+    background: var(--ink); border: none;
+    border-radius: 6px; padding: 12px 15px; font-size: 12.5px; line-height: 1.65;
+    box-shadow: 0 8px 24px rgba(0,0,0,.16); max-width: 240px; opacity: 0; transition: opacity .1s;
+    color: #F2F1EF;
+  }
+  #tooltip .t-name{ font-weight: 700; font-size: 13.5px; margin-bottom: 4px; font-family: inherit; }
+  #tooltip .t-group{ color: rgba(242,241,239,.55); font-size: 11px; margin-bottom: 6px; }
+  #tooltip .t-val{ color: #fff; font-weight: 700; }
+  #tooltip .t-link{ color: rgba(242,241,239,.7); font-size: 10.5px; margin-top: 6px; font-weight: 400; }
+
+  .panel-block{
+    background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+    padding: 18px; margin-bottom: 16px;
+  }
+  .panel-title{
+    font-size: 10.5px; letter-spacing: .14em; color: var(--ink-faint);
+    margin-bottom: 14px; font-weight: 500; font-family: inherit; text-transform: uppercase;
+  }
+  #legend{ max-height: 480px; overflow-y: auto; padding-right: 4px; }
+  #legend::-webkit-scrollbar{ width: 5px; }
+  #legend::-webkit-scrollbar-thumb{ background: var(--line); border-radius: 3px; }
+  .legend-bu-head{
+    font-size: 10px; color: var(--ink-faint); margin: 14px 0 6px; padding-left: 2px;
+    text-transform: uppercase; letter-spacing: .08em; font-weight: 500;
+  }
+  .legend-bu-head:first-child{ margin-top: 0; }
+  .legend-item{
+    display:flex; align-items: center; gap: 9px; padding: 7px 6px; border-radius: 4px;
+    cursor: pointer; transition: background .15s; font-size: 12px;
+  }
+  .legend-item:hover{ background: var(--bg); }
+  .legend-item.active{ background: var(--line); }
+  .swatch{ width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+  .legend-name{ flex: 1; color: var(--ink); font-weight: 400; }
+  .legend-meta{ color: var(--ink-faint); font-size: 10.5px; text-align: right; white-space: nowrap; font-weight: 400; }
+
+  #detail{ min-height: 64px; }
+  #detail .placeholder{ color: var(--ink-faint); font-size: 12.5px; line-height: 1.7; }
+  #detail .d-name{ font-family: inherit; font-size: 16px; font-weight: 700; margin-bottom: 5px; }
+  #detail .d-group{ font-size: 11px; color: var(--ink-dim); margin-bottom: 12px; font-weight: 400; }
+  #detail .d-row{ display:flex; justify-content: space-between; font-size: 12.5px; padding: 7px 0; border-top: 1px solid var(--line); }
+  #detail .d-row .k{ color: var(--ink-faint); font-weight: 400; }
+  #detail .d-row .v{ color: var(--ink); font-weight: 700; }
+  #detail .d-link{
+    display: inline-block; margin-top: 14px; background: transparent; color: var(--ink);
+    border: 1px solid var(--ink); border-radius: 6px; padding: 8px 16px;
+    font-size: 12px; font-weight: 500; text-decoration: none; font-family: inherit;
+    transition: background .15s, color .15s;
+  }
+  #detail .d-link:hover{ background: var(--ink); color: #fff; }
+  #detail .d-nolink{ margin-top: 14px; font-size: 11px; color: var(--ink-faint); font-weight: 400; }
+
+  footer{
+    margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 11px; color: var(--ink-faint); line-height: 1.8; font-weight: 400;
+  }
+
+  /* List view */
+  #tabsListBu{ position: sticky; top: 0; background: var(--bg); z-index: 10; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .list-bu{ margin-top: 36px; scroll-margin-top: 60px; }
+  .list-bu:first-child{ margin-top: 0; }
+  .list-bu-title{
+    font-size: 13px; font-weight: 700; color: var(--ink); letter-spacing: .02em;
+    padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid var(--ink);
+  }
+  .list-field{ margin-top: 22px; }
+  .list-field-title{
+    display:flex; align-items: baseline; gap: 8px; font-size: 12px; font-weight: 700;
+    color: var(--ink); margin-bottom: 2px; padding: 4px 0;
+  }
+  .list-field-title .swatch{ width: 9px; height: 9px; flex-shrink:0; }
+  .list-field-title .cnt{ color: var(--ink-faint); font-weight: 400; font-size: 11px; }
+  .list-rows{ }
+  .list-row{
+    display:flex; align-items:baseline; gap: 10px; padding: 6px 2px;
+    border-bottom: 1px solid var(--line); font-size: 12.5px;
+  }
+  .list-row .ln-name{ flex: 1; color: var(--ink); font-weight: 400; }
+  .list-row .ln-name a{ color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line-strong); }
+  .list-row .ln-name a:hover{ border-color: var(--ink); }
+  .list-row .ln-val{ color: var(--ink-dim); font-size: 11.5px; white-space: nowrap; min-width: 90px; text-align: right; }
+  .list-row .ln-val.faint{ color: var(--ink-faint); }
+  .list-row .ln-link{ color: var(--ink-faint); font-size: 11px; white-space: nowrap; }
+  .list-row.list-hidden{ display: none; }
+  .list-empty{ color: var(--ink-faint); font-size: 12.5px; padding: 30px 0; text-align: center; }
+  .list-meta-row{ font-size: 11px; color: var(--ink-faint); margin-bottom: 18px; }
+
+  @media (max-width: 880px){
+    .layout{ flex-direction: column; }
+    .sidepane{ width: 100%; }
+    #legend{ max-height: 260px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="eyebrow">学会名鑑 / 日本学術会議 30学術分野 — 学術データ可視化</div>
+    <h1>日本の学会ツリーマップ</h1>
+    <div class="sub">
+      日本学術会議の組織区分「<b>3部</b>（人文・社会科学／生命科学／理学・工学）」と、その内訳である「<b>30の学術分野</b>」を基準に、
+      学会名鑑掲載の学会<b id="totalCountLbl">441</b>団体を分類した。<b>会員数を確認できた団体は実数で、確認できなかった団体は名称のみ（面積は最小値で統一）</b>で表示している。
+      部タブを選ぶと、その部に属する分野ごとの拡大マップに切り替えられる。
+    </div>
+    <div class="stat-row" id="statRow"></div>
+  </header>
+
+  <div class="tabs" id="tabsMain">
+    <button class="tab-btn active" data-view="overview">全体</button>
+    <button class="tab-btn" data-view="drill" data-bu="1">第一部・人文社会科学</button>
+    <button class="tab-btn" data-view="drill" data-bu="2">第二部・生命科学</button>
+    <button class="tab-btn" data-view="drill" data-bu="3">第三部・理学工学</button>
+    <button class="tab-btn" data-view="list">一覧</button>
+  </div>
+  <div class="tabs sub" id="tabsOverviewSub">
+    <button class="tab-btn small active" data-mode="bu">3部で見る</button>
+    <button class="tab-btn small" data-mode="field">30分野で見る</button>
+    <span class="tab-hint">同じ学会データを、粒度だけ変えて表示します</span>
+  </div>
+  <div class="tabs sub pills" id="tabsFieldPills" style="display:none;"></div>
+
+  <div class="layout" id="layoutMain">
+    <div class="mainpane">
+      <div id="breadcrumb"></div>
+      <div class="controls">
+        <input id="search" type="text" placeholder="学会名で検索（例：物理学会、内科）">
+        <button id="resetBtn">表示をリセット</button>
+      </div>
+      <div id="chart-wrap">
+        <svg id="chart"></svg>
+      </div>
+    </div>
+
+    <div class="sidepane">
+      <div class="panel-block">
+        <div class="panel-title" id="legendTitle">30分野インデックス（クリックでその分野の拡大マップへ）</div>
+        <div id="legend"></div>
+      </div>
+      <div class="panel-block">
+        <div class="panel-title">選択した学会</div>
+        <div id="detail"><div class="placeholder">セルをクリックすると、会員数・分野内シェア・全体シェアを表示します。</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="listView" style="display:none;">
+    <div class="tabs sub" id="tabsListBu">
+      <button class="tab-btn small" data-jump="1">第一部・人文社会科学</button>
+      <button class="tab-btn small" data-jump="2">第二部・生命科学</button>
+      <button class="tab-btn small" data-jump="3">第三部・理学工学</button>
+    </div>
+    <div class="controls">
+      <input id="searchList" type="text" placeholder="学会名で検索（例：物理学会、内科）">
+      <button id="resetBtnList">表示をリセット</button>
+    </div>
+    <div id="listOutput"></div>
+  </div>
+
+  <footer>
+    出典：日本学術会議「学会名鑑」「協力学術研究団体一覧」「30の学術分野（分野別委員会）」、日本医学会「分科会一覧」、日本歯科医学会専門分科会・認定分科会（厚生労働省資料）、各学会公式サイト、Wikipedia「日本の学会一覧」等を併用して作成。<br>
+    注：学会名鑑には2,100以上の協力学術研究団体が登録されている。本図には<b id="footerCount">441</b>団体を収録しているが、これは全数ではない。会員数を個別に確認できた団体は実際の会員数（概数）で面積を表現し、名称のみ判明し会員数が非公表または未確認の団体は、面積を最小値で統一して表示している（ツールチップで「非公表」と明示）。分野分類は日本学術会議「分野別委員会」の区分に準拠し、複数分野に関連する学会は主たる1分野に分類した。
+  </footer>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+// ===== Official 30-field taxonomy, in SCJ order =====
+const FIELDS = [
+  {name:"言語・文学", bu:1},{name:"哲学", bu:1},{name:"心理学・教育学", bu:1},
+  {name:"社会学", bu:1},{name:"史学", bu:1},{name:"地域研究", bu:1},
+  {name:"法学", bu:1},{name:"政治学", bu:1},{name:"経済学", bu:1},{name:"経営学", bu:1},
+  {name:"基礎生物学", bu:2},{name:"統合生物学", bu:2},{name:"農学", bu:2},{name:"食料科学", bu:2},
+  {name:"基礎医学", bu:2},{name:"臨床医学", bu:2},{name:"健康・生活科学", bu:2},
+  {name:"歯学", bu:2},{name:"薬学", bu:2},
+  {name:"環境学", bu:3},{name:"数理科学", bu:3},{name:"物理学", bu:3},{name:"地球惑星科学", bu:3},
+  {name:"情報学", bu:3},{name:"化学", bu:3},{name:"総合工学", bu:3},{name:"機械工学", bu:3},
+  {name:"電気電子工学", bu:3},{name:"土木工学・建築学", bu:3},{name:"材料工学", bu:3},
+];
+const BU_INFO = {
+  1: {name:"第一部　人文・社会科学", hue:20},
+  2: {name:"第二部　生命科学", hue:152},
+  3: {name:"第三部　理学・工学", hue:222},
+};
+const fieldBu = {}; FIELDS.forEach(f=>fieldBu[f.name]=f.bu);
+
+// ===== Leaves (139 societies) =====
+const LEAVES = [
+  {name:"日本言語学会", value:2200, field:"言語・文学"},
+  {name:"日本英語学会", value:1600, field:"言語・文学"},
+  {name:"日本フランス語フランス文学会", value:1150, field:"言語・文学"},
+  {name:"言語処理学会", value:80, field:"言語・文学"},
+  {name:"言語科学会", value:80, field:"言語・文学"},
+  {name:"言語人文学会", value:80, field:"言語・文学"},
+  {name:"言語文化学会", value:80, field:"言語・文学"},
+  {name:"言語文化教育研究学会", value:80, field:"言語・文学"},
+  {name:"計量国語学会", value:80, field:"言語・文学"},
+  {name:"小出記念日本語教育学会", value:80, field:"言語・文学"},
+  {name:"和歌文学会", value:80, field:"言語・文学"},
+  {name:"和漢比較文学会", value:80, field:"言語・文学"},
+  {name:"国文学言語と文芸の会", value:80, field:"言語・文学"},
+  {name:"サイコアナリティカル英文学会", value:80, field:"言語・文学"},
+  {name:"サウンディングズ英語英米文学会", value:80, field:"言語・文学"},
+  {name:"俳文学会", value:80, field:"言語・文学"},
+  {name:"東アジア日本語教育･日本文化研究学会", value:80, field:"言語・文学"},
+  {name:"日本語学会", value:80, field:"言語・文学"},
+  {name:"日本語教育学会", value:80, field:"言語・文学"},
+  {name:"全国語学教育学会", value:80, field:"言語・文学"},
+  {name:"日本北方言語学会", value:80, field:"言語・文学"},
+  {name:"日本中国語学会", value:80, field:"言語・文学"},
+  {name:"日本フランス語学会", value:80, field:"言語・文学"},
+  {name:"日本ロシア文学会", value:80, field:"言語・文学"},
+  {name:"日本ロマンス語学会", value:80, field:"言語・文学"},
+  {name:"日本民俗音楽学会", value:80, field:"言語・文学"},
+  {name:"アジア系アメリカ文学研究会", value:80, field:"言語・文学"},
+  {name:"イアシル・ジャパン", value:80, field:"言語・文学"},
+  {name:"川端文学研究会", value:80, field:"言語・文学"},
+  {name:"近代英語協会", value:80, field:"言語・文学"},
+  {name:"日本ヴァージニア・ウルフ協会", value:80, field:"言語・文学"},
+  {name:"日本ウィリアム・フォークナー協会", value:80, field:"言語・文学"},
+  {name:"日本ギャスケル協会", value:80, field:"言語・文学"},
+  {name:"日本ゲーテ協会", value:80, field:"言語・文学"},
+  {name:"日本シェイクスピア協会", value:80, field:"言語・文学"},
+  {name:"日本ジェイムズ・ジョイス協会", value:80, field:"言語・文学"},
+  {name:"日本ジョージ・エリオット協会", value:80, field:"言語・文学"},
+  {name:"日本ナサニエル・ホーソーン協会", value:80, field:"言語・文学"},
+  {name:"日本ハーディ協会", value:80, field:"言語・文学"},
+  {name:"日本ブロンテ協会", value:80, field:"言語・文学"},
+  {name:"日本文学協会", value:80, field:"言語・文学"},
+  {name:"日本方言研究会", value:80, field:"言語・文学"},
+  {name:"日本ルイス・キャロル協会", value:80, field:"言語・文学"},
+  {name:"日本ロレンス協会", value:80, field:"言語・文学"},
+  {name:"日本ウラル学会", value:80, field:"言語・文学"},
+  {name:"日本イスパニヤ学会", value:80, field:"言語・文学"},
+  {name:"朝鮮学会", value:80, field:"言語・文学"},
+  {name:"日本語文法学会", value:80, field:"言語・文学"},
+  {name:"表現学会", value:80, field:"言語・文学"},
+  {name:"英語コーパス学会", value:80, field:"言語・文学"},
+  {name:"日本英文学会", value:80, field:"言語・文学"},
+  {name:"日本語用論学会", value:80, field:"言語・文学"},
+  {name:"日本音声学会", value:80, field:"言語・文学"},
+  {name:"社会言語科学会", value:80, field:"言語・文学"},
+  {name:"日本言語政策学会", value:80, field:"言語・文学"},
+  {name:"日本認知言語学会", value:80, field:"言語・文学"},
+  {name:"日本実験言語学会", value:80, field:"言語・文学"},
+  {name:"美夫君志会", value:80, field:"言語・文学"},
+  {name:"イギリス・ロマン派学会", value:80, field:"言語・文学"},
+  {name:"鈴屋学会", value:80, field:"言語・文学"},
+  {name:"世界文学会", value:80, field:"言語・文学"},
+  {name:"全国大学国語国文学会", value:80, field:"言語・文学"},
+  {name:"中古文学会", value:80, field:"言語・文学"},
+  {name:"日本アメリカ文学会", value:80, field:"言語・文学"},
+  {name:"日本実用英語学会", value:80, field:"言語・文学"},
+  {name:"日本児童文学学会", value:80, field:"言語・文学"},
+  {name:"日本18世紀学会", value:80, field:"言語・文学"},
+  {name:"日本中世英語英文学会", value:80, field:"言語・文学"},
+  {name:"日本通訳翻訳学会", value:80, field:"言語・文学"},
+  {name:"日本西洋古典学会", value:80, field:"言語・文学"},
+  {name:"日本独文学会", value:80, field:"言語・文学"},
+  {name:"日本比較文学会", value:80, field:"言語・文学"},
+  {name:"日本プラグマティックス学会", value:80, field:"言語・文学"},
+  {name:"日本文体論学会", value:80, field:"言語・文学"},
+  {name:"日本ポピュラー音楽学会", value:80, field:"言語・文学"},
+  {name:"日本ソロー学会", value:80, field:"言語・文学"},
+  {name:"母語・継承語・バイリンガル教育(MHB)学会", value:80, field:"言語・文学"},
+  {name:"萬葉学会", value:80, field:"言語・文学"},
+  {name:"物語研究会", value:80, field:"言語・文学"},
+  {name:"日本哲学会", value:1700, field:"哲学"},
+  {name:"日本倫理学会", value:1000, field:"哲学"},
+  {name:"日本宗教学会", value:1600, field:"哲学"},
+  {name:"早稲田大学東洋哲学会", value:80, field:"哲学"},
+  {name:"美学会", value:80, field:"哲学"},
+  {name:"日本中国学会", value:80, field:"哲学"},
+  {name:"日本印度学仏教学会", value:80, field:"哲学"},
+  {name:"西田哲学会", value:80, field:"哲学"},
+  {name:"宗教哲学会", value:80, field:"哲学"},
+  {name:"宗教倫理学会", value:80, field:"哲学"},
+  {name:"キリスト教史学会", value:80, field:"哲学"},
+  {name:"日本基督教学会", value:80, field:"哲学"},
+  {name:"日本仏教学会", value:80, field:"哲学"},
+  {name:"関西倫理学会", value:80, field:"哲学"},
+  {name:"日本思想史学会", value:80, field:"哲学"},
+  {name:"日本科学哲学会", value:80, field:"哲学"},
+  {name:"実存思想協会", value:80, field:"哲学"},
+  {name:"応用哲学会", value:80, field:"哲学"},
+  {name:"若手哲学研究者フォーラム", value:80, field:"哲学"},
+  {name:"科学基礎論学会", value:80, field:"哲学"},
+  {name:"日本生命倫理学会", value:80, field:"哲学"},
+  {name:"ギリシャ哲学セミナー", value:80, field:"哲学"},
+  {name:"日本イギリス哲学会", value:80, field:"哲学"},
+  {name:"アメリカ哲学フォーラム", value:80, field:"哲学"},
+  {name:"日仏哲学会", value:80, field:"哲学"},
+  {name:"日本現象学会", value:80, field:"哲学"},
+  {name:"中世哲学会", value:80, field:"哲学"},
+  {name:"日本医学哲学・倫理学会", value:80, field:"哲学"},
+  {name:"ドイツ近代哲学研究会", value:80, field:"哲学"},
+  {name:"日本カント協会", value:80, field:"哲学"},
+  {name:"日本ショーペンハウアー協会", value:80, field:"哲学"},
+  {name:"日本ヘーゲル学会", value:80, field:"哲学"},
+  {name:"日本デューイ学会", value:80, field:"哲学"},
+  {name:"日本ホワイトヘッド・プロセス学会", value:80, field:"哲学"},
+  {name:"日本シェリング協会", value:80, field:"哲学"},
+  {name:"フッサール研究会", value:80, field:"哲学"},
+  {name:"スピノザ協会", value:80, field:"哲学"},
+  {name:"日本ライプニッツ協会", value:80, field:"哲学"},
+  {name:"日本フィヒテ協会", value:80, field:"哲学"},
+  {name:"日本サルトル学会", value:80, field:"哲学"},
+  {name:"レヴィナス協会", value:80, field:"哲学"},
+  {name:"メルロ=ポンティ哲学研究会", value:80, field:"哲学"},
+  {name:"メルロ=ポンティ・サークル", value:80, field:"哲学"},
+  {name:"脱構築研究会", value:80, field:"哲学"},
+  {name:"日本ミシェル・アンリ哲学会", value:80, field:"哲学"},
+  {name:"北海道哲学会", value:80, field:"哲学"},
+  {name:"東北哲学会", value:80, field:"哲学"},
+  {name:"哲学会", value:80, field:"哲学"},
+  {name:"カント・アーベント", value:80, field:"哲学"},
+  {name:"三田哲学会", value:80, field:"哲学"},
+  {name:"早稲田大学哲学会", value:80, field:"哲学"},
+  {name:"名古屋哲学研究会", value:80, field:"哲学"},
+  {name:"京都哲学会", value:80, field:"哲学"},
+  {name:"九州大学哲学会", value:80, field:"哲学"},
+  {name:"日本アリストテレス協会", value:80, field:"哲学"},
+  {name:"唯物論研究協会", value:80, field:"哲学"},
+  {name:"社会思想史学会", value:80, field:"哲学"},
+  {name:"日本密教学会", value:80, field:"哲学"},
+  {name:"神道宗教學會", value:80, field:"哲学"},
+  {name:"密教研究会", value:80, field:"哲学"},
+  {name:"マルクス・エンゲルス研究者の会", value:80, field:"哲学"},
+  {name:"印度学宗教学会", value:80, field:"哲学"},
+  {name:"インド思想史学会", value:80, field:"哲学"},
+  {name:"日本道教学会", value:80, field:"哲学"},
+  {name:"日本臨床死生学会", value:80, field:"哲学"},
+  {name:"日本ヤスパース協会", value:80, field:"哲学"},
+  {name:"教育哲学会", value:80, field:"哲学"},
+  {name:"仏教思想学会", value:80, field:"哲学"},
+  {name:"広島哲学会", value:80, field:"哲学"},
+  {name:"駒沢宗教学研究会", value:80, field:"哲学"},
+  {name:"パーリ学仏教文化学会", value:80, field:"哲学"},
+  {name:"ハイデガー・フォーラム", value:80, field:"哲学"},
+  {name:"比較思想学会", value:80, field:"哲学"},
+  {name:"日本心理学会", value:7500, field:"心理学・教育学"},
+  {name:"日本LD学会", value:10669, field:"心理学・教育学"},
+  {name:"日本健康心理学会", value:1458, field:"心理学・教育学"},
+  {name:"日本学生相談学会", value:1454, field:"心理学・教育学"},
+  {name:"日本質的心理学会", value:1246, field:"心理学・教育学"},
+  {name:"日本応用心理学会", value:1124, field:"心理学・教育学"},
+  {name:"産業・組織心理学会", value:1116, field:"心理学・教育学"},
+  {name:"日本行動分析学会", value:1060, field:"心理学・教育学"},
+  {name:"日本交通心理学会", value:867, field:"心理学・教育学"},
+  {name:"日本K-ABCアセスメント学会", value:816, field:"心理学・教育学"},
+  {name:"日本自律訓練学会", value:724, field:"心理学・教育学"},
+  {name:"日本基礎心理学会", value:647, field:"心理学・教育学"},
+  {name:"日本感情心理学会", value:405, field:"心理学・教育学"},
+  {name:"日本コミュニティ心理学会", value:423, field:"心理学・教育学"},
+  {name:"日本ストレスマネジメント学会", value:283, field:"心理学・教育学"},
+  {name:"日本コラージュ療法学会", value:183, field:"心理学・教育学"},
+  {name:"日本イメージ心理学会", value:114, field:"心理学・教育学"},
+  {name:"日本教育学会", value:3000, field:"心理学・教育学"},
+  {name:"日本教育工学会", value:3500, field:"心理学・教育学"},
+  {name:"臨床教科教育学会", value:80, field:"心理学・教育学"},
+  {name:"和文化教育学会", value:80, field:"心理学・教育学"},
+  {name:"美術科教育学会", value:80, field:"心理学・教育学"},
+  {name:"大学教育学会", value:80, field:"心理学・教育学"},
+  {name:"大学評価学会", value:80, field:"心理学・教育学"},
+  {name:"関東教育学会", value:80, field:"心理学・教育学"},
+  {name:"小学校英語教育学会", value:80, field:"心理学・教育学"},
+  {name:"全国英語教育学会", value:80, field:"心理学・教育学"},
+  {name:"日本安全教育学会", value:80, field:"心理学・教育学"},
+  {name:"日本音楽教育学会", value:80, field:"心理学・教育学"},
+  {name:"北海道心理学会", value:80, field:"心理学・教育学"},
+  {name:"幼児教育史学会", value:80, field:"心理学・教育学"},
+  {name:"音楽教育史学会", value:80, field:"心理学・教育学"},
+  {name:"教育史学会", value:80, field:"心理学・教育学"},
+  {name:"防災教育学会", value:80, field:"心理学・教育学"},
+  {name:"アジア教育学会", value:80, field:"心理学・教育学"},
+  {name:"異文化間教育学会", value:80, field:"心理学・教育学"},
+  {name:"大学英語教育学会", value:80, field:"心理学・教育学"},
+  {name:"大学入試学会", value:80, field:"心理学・教育学"},
+  {name:"大学美術教育学会", value:80, field:"心理学・教育学"},
+  {name:"日本電話相談学会", value:80, field:"心理学・教育学"},
+  {name:"日本特別活動学会", value:80, field:"心理学・教育学"},
+  {name:"日本特別ニーズ教育学会", value:80, field:"心理学・教育学"},
+  {name:"心理科学研究会", value:80, field:"心理学・教育学"},
+  {name:"日本福祉心理学会", value:80, field:"心理学・教育学"},
+  {name:"日本パーソナリティ心理学会", value:80, field:"心理学・教育学"},
+  {name:"日本社会心理学会", value:80, field:"心理学・教育学"},
+  {name:"東海心理学会", value:80, field:"心理学・教育学"},
+  {name:"日本学校心理学会", value:1096, field:"心理学・教育学"},
+  {name:"日本生理心理学会", value:80, field:"心理学・教育学"},
+  {name:"日本臨床教育学会", value:80, field:"心理学・教育学"},
+  {name:"日本動物心理学会", value:80, field:"心理学・教育学"},
+  {name:"日本教育心理学会", value:80, field:"心理学・教育学"},
+  {name:"日本発達心理学会", value:80, field:"心理学・教育学"},
+  {name:"日本認知心理学会", value:80, field:"心理学・教育学"},
+  {name:"日本家族心理学会", value:839, field:"心理学・教育学"},
+  {name:"日本カウンセリング学会", value:80, field:"心理学・教育学"},
+  {name:"日本応用教育心理学会", value:80, field:"心理学・教育学"},
+  {name:"日本キャリア教育学会", value:80, field:"心理学・教育学"},
+  {name:"日本グループ・ダイナミックス学会", value:80, field:"心理学・教育学"},
+  {name:"日本行動科学学会", value:80, field:"心理学・教育学"},
+  {name:"日本行動療法学会", value:80, field:"心理学・教育学"},
+  {name:"日本催眠医学心理学会", value:80, field:"心理学・教育学"},
+  {name:"日本産業カウンセリング学会", value:80, field:"心理学・教育学"},
+  {name:"日本青年心理学会", value:80, field:"心理学・教育学"},
+  {name:"日本特殊教育学会", value:80, field:"心理学・教育学"},
+  {name:"日本人間性心理学会", value:80, field:"心理学・教育学"},
+  {name:"日本バイオフィードバック学会", value:80, field:"心理学・教育学"},
+  {name:"日本箱庭療法学会", value:80, field:"心理学・教育学"},
+  {name:"日本犯罪心理学会", value:80, field:"心理学・教育学"},
+  {name:"日本ブリーフサイコセラピー学会", value:80, field:"心理学・教育学"},
+  {name:"日本マイクロカウンセリング学会", value:80, field:"心理学・教育学"},
+  {name:"日本遊戯療法学会", value:80, field:"心理学・教育学"},
+  {name:"日本リハビリテイション心理学会", value:80, field:"心理学・教育学"},
+  {name:"日本理論心理学会", value:80, field:"心理学・教育学"},
+  {name:"日本臨床心理学会", value:80, field:"心理学・教育学"},
+  {name:"日本臨床動作学会", value:80, field:"心理学・教育学"},
+  {name:"日本教育カウンセリング学会", value:80, field:"心理学・教育学"},
+  {name:"日本社会科教育学会", value:80, field:"心理学・教育学"},
+  {name:"日本社会教育学会", value:80, field:"心理学・教育学"},
+  {name:"日本児童学会", value:80, field:"心理学・教育学"},
+  {name:"日本道徳教育方法学会", value:80, field:"心理学・教育学"},
+  {name:"日本道徳教育学会", value:80, field:"心理学・教育学"},
+  {name:"日本乳幼児教育学会", value:80, field:"心理学・教育学"},
+  {name:"日本発達障害支援システム学会", value:80, field:"心理学・教育学"},
+  {name:"日本ピア・サポート学会", value:80, field:"心理学・教育学"},
+  {name:"日本比較教育学会", value:80, field:"心理学・教育学"},
+  {name:"日本ヒューマン・ケア心理学会", value:80, field:"心理学・教育学"},
+  {name:"日本美術教育学会", value:80, field:"心理学・教育学"},
+  {name:"日本福祉教育・ボランティア学習学会", value:80, field:"心理学・教育学"},
+  {name:"日本物理教育学会", value:80, field:"心理学・教育学"},
+  {name:"日本ペスタロッチー・フレーベル学会", value:80, field:"心理学・教育学"},
+  {name:"日本保育学会", value:80, field:"心理学・教育学"},
+  {name:"日本選択理論心理学会", value:80, field:"心理学・教育学"},
+  {name:"日本生活科・総合的学習教育学会", value:80, field:"心理学・教育学"},
+  {name:"日本生活指導学会", value:80, field:"心理学・教育学"},
+  {name:"日本生徒指導学会", value:80, field:"心理学・教育学"},
+  {name:"日本体育科教育学会", value:80, field:"心理学・教育学"},
+  {name:"日本読書学会", value:80, field:"心理学・教育学"},
+  {name:"日本理科教育学会", value:80, field:"心理学・教育学"},
+  {name:"日本臨床心理身体運動学会", value:80, field:"心理学・教育学"},
+  {name:"日本老年行動科学会", value:80, field:"心理学・教育学"},
+  {name:"日本オルフ音楽教育研究会", value:80, field:"心理学・教育学"},
+  {name:"日本ピアノ教育連盟", value:80, field:"心理学・教育学"},
+  {name:"日本保育協会", value:80, field:"心理学・教育学"},
+  {name:"日本モンテッソーリ協会", value:80, field:"心理学・教育学"},
+  {name:"地理教育研究会", value:80, field:"心理学・教育学"},
+  {name:"天文教育普及研究会", value:80, field:"心理学・教育学"},
+  {name:"日本社会学会", value:3600, field:"社会学"},
+  {name:"日本文化人類学会", value:2000, field:"社会学"},
+  {name:"現代文化人類学会", value:80, field:"社会学"},
+  {name:"公共コミュニケーション学会", value:80, field:"社会学"},
+  {name:"歴史人類学会", value:80, field:"社会学"},
+  {name:"社会事業史学会", value:80, field:"社会学"},
+  {name:"社会情報学会", value:80, field:"社会学"},
+  {name:"社会調査協会", value:80, field:"社会学"},
+  {name:"数理社会学会", value:80, field:"社会学"},
+  {name:"地域社会学会", value:80, field:"社会学"},
+  {name:"茶屋四郎次郎記念学術学会", value:80, field:"社会学"},
+  {name:"東海社会学会", value:80, field:"社会学"},
+  {name:"東北社会学研究会", value:80, field:"社会学"},
+  {name:"東北社会学会", value:80, field:"社会学"},
+  {name:"西日本社会学会", value:80, field:"社会学"},
+  {name:"日仏社会学会", value:80, field:"社会学"},
+  {name:"日中社会学会", value:80, field:"社会学"},
+  {name:"日本解放社会学会", value:80, field:"社会学"},
+  {name:"日本家族社会学会", value:80, field:"社会学"},
+  {name:"日本社会学史学会", value:80, field:"社会学"},
+  {name:"日本社会学理論学会", value:80, field:"社会学"},
+  {name:"日本社会病理学会", value:80, field:"社会学"},
+  {name:"日本社会福祉学会", value:80, field:"社会学"},
+  {name:"日本社会分析学会", value:80, field:"社会学"},
+  {name:"日本生涯教育学会", value:80, field:"社会学"},
+  {name:"日本スポーツ社会学会", value:80, field:"社会学"},
+  {name:"日本村落研究学会", value:80, field:"社会学"},
+  {name:"日本都市社会学会", value:80, field:"社会学"},
+  {name:"日本保健医療社会学会", value:80, field:"社会学"},
+  {name:"日本マス・コミュニケーション学会", value:80, field:"社会学"},
+  {name:"日本労働社会学会", value:80, field:"社会学"},
+  {name:"日本老年社会科学会", value:80, field:"社会学"},
+  {name:"東アジア社会学会", value:80, field:"社会学"},
+  {name:"福祉社会学会", value:80, field:"社会学"},
+  {name:"日本社会関連会計学会", value:80, field:"社会学"},
+  {name:"日本社会福祉実践理論学会", value:80, field:"社会学"},
+  {name:"日本社会文学会", value:80, field:"社会学"},
+  {name:"日本女性学会", value:80, field:"社会学"},
+  {name:"日本ジェンダー学会", value:80, field:"社会学"},
+  {name:"日本精神保健社会学会", value:80, field:"社会学"},
+  {name:"日本人間関係学会", value:80, field:"社会学"},
+  {name:"日本人間学会", value:80, field:"社会学"},
+  {name:"日本出版学会", value:80, field:"社会学"},
+  {name:"日本展示学会", value:80, field:"社会学"},
+  {name:"日本福祉のまちづくり学会", value:80, field:"社会学"},
+  {name:"日本仏教社会福祉学会", value:80, field:"社会学"},
+  {name:"日本評価学会", value:80, field:"社会学"},
+  {name:"日本犯罪学会", value:80, field:"社会学"},
+  {name:"日本犯罪社会学会", value:80, field:"社会学"},
+  {name:"日本ソーシャルワーク学会", value:80, field:"社会学"},
+  {name:"日本大学社会学会", value:80, field:"社会学"},
+  {name:"日本地域福祉学会", value:80, field:"社会学"},
+  {name:"日本テレワーク学会", value:80, field:"社会学"},
+  {name:"日本スポーツ人類学会", value:80, field:"社会学"},
+  {name:"日本スポーツとジェンダー学会", value:80, field:"社会学"},
+  {name:"日本法社会学会", value:80, field:"社会学"},
+  {name:"部落問題研究所", value:80, field:"社会学"},
+  {name:"日本ミュージアム・マネージメント学会", value:80, field:"社会学"},
+  {name:"コミュニティ政策学会", value:80, field:"社会学"},
+  {name:"コンテンツツーリズム学会", value:80, field:"社会学"},
+  {name:"自治体学会", value:80, field:"社会学"},
+  {name:"情報社会学会", value:80, field:"社会学"},
+  {name:"総合人間学会", value:80, field:"社会学"},
+  {name:"社会系教科教育学会", value:80, field:"社会学"},
+  {name:"社会文化学会", value:80, field:"社会学"},
+  {name:"「宗教と社会」学会", value:80, field:"社会学"},
+  {name:"情報コミュニケーション学会", value:80, field:"社会学"},
+  {name:"人類学関連学会協議会", value:80, field:"社会学"},
+  {name:"戦略研究学会", value:80, field:"社会学"},
+  {name:"全日本博物館学会", value:80, field:"社会学"},
+  {name:"総合観光学会", value:80, field:"社会学"},
+  {name:"多文化関係学会", value:80, field:"社会学"},
+  {name:"余暇ツーリズム学会", value:80, field:"社会学"},
+  {name:"科学技術社会論学会", value:80, field:"社会学"},
+  {name:"科学社会学会", value:80, field:"社会学"},
+  {name:"家族問題研究学会", value:80, field:"社会学"},
+  {name:"カルチュラル・スタディーズ学会", value:80, field:"社会学"},
+  {name:"関係性の教育学会", value:80, field:"社会学"},
+  {name:"観光学術学会", value:80, field:"社会学"},
+  {name:"関西社会学会", value:80, field:"社会学"},
+  {name:"関東社会学会", value:80, field:"社会学"},
+  {name:"共生社会システム学会", value:80, field:"社会学"},
+  {name:"京都滋賀体育学会", value:80, field:"社会学"},
+  {name:"グローバル・ガバナンス学会", value:80, field:"社会学"},
+  {name:"国際ジェンダー学会", value:80, field:"社会学"},
+  {name:"国際女性スポーツ学会", value:80, field:"社会学"},
+  {name:"異文化コミュニケーション学会", value:80, field:"社会学"},
+  {name:"クィア学会", value:80, field:"社会学"},
+  {name:"日本NPO学会", value:80, field:"社会学"},
+  {name:"北海道社会学会", value:80, field:"社会学"},
+  {name:"異文化間情報連携学会", value:80, field:"社会学"},
+  {name:"移民政策学会", value:80, field:"社会学"},
+  {name:"大学地域連携学会", value:80, field:"社会学"},
+  {name:"地域安全学会", value:80, field:"社会学"},
+  {name:"地域地理科学会", value:80, field:"社会学"},
+  {name:"地域デザイン学会", value:80, field:"社会学"},
+  {name:"地域文化学会", value:80, field:"社会学"},
+  {name:"史学会", value:2400, field:"史学"},
+  {name:"文化財保存修復学会", value:80, field:"史学"},
+  {name:"日本文化財科学会", value:80, field:"史学"},
+  {name:"延喜式研究会", value:80, field:"史学"},
+  {name:"大阪歴史科学協議会", value:80, field:"史学"},
+  {name:"関東近世史研究会", value:80, field:"史学"},
+  {name:"戦国史研究会", value:80, field:"史学"},
+  {name:"早稲田大学東洋史懇話会", value:80, field:"史学"},
+  {name:"日本考古学協会", value:80, field:"史学"},
+  {name:"日本経済思想史研究会", value:80, field:"史学"},
+  {name:"日本民俗学会", value:80, field:"史学"},
+  {name:"日本マンガ学会", value:80, field:"史学"},
+  {name:"日本史研究会", value:3048, field:"史学"},
+  {name:"歴史学研究会", value:2200, field:"史学"},
+  {name:"日本歴史学会", value:8000, field:"史学"},
+  {name:"立正大学史学会", value:80, field:"史学"},
+  {name:"広島史学研究会", value:80, field:"史学"},
+  {name:"信濃史学会", value:80, field:"史学"},
+  {name:"東学会", value:80, field:"史学"},
+  {name:"大阪歴史学会", value:80, field:"史学"},
+  {name:"東北史学会", value:80, field:"史学"},
+  {name:"日本西洋史学会", value:80, field:"史学"},
+  {name:"歴史教育者協議会", value:80, field:"史学"},
+  {name:"地方史研究協議会", value:80, field:"史学"},
+  {name:"駿台史学会", value:80, field:"史学"},
+  {name:"神道史學會", value:80, field:"史学"},
+  {name:"駒沢史学会", value:80, field:"史学"},
+  {name:"芸備地方史研究会", value:80, field:"史学"},
+  {name:"中央史学会", value:80, field:"史学"},
+  {name:"中国四国歴史学地理学協会", value:80, field:"史学"},
+  {name:"朝鮮史研究会", value:80, field:"史学"},
+  {name:"東欧史研究会", value:80, field:"史学"},
+  {name:"東海大学史学会", value:80, field:"史学"},
+  {name:"東京学芸大学史学会", value:80, field:"史学"},
+  {name:"東京歴史科学研究会", value:80, field:"史学"},
+  {name:"東方学会", value:80, field:"史学"},
+  {name:"東洋史研究会", value:80, field:"史学"},
+  {name:"内陸アジア史学会", value:80, field:"史学"},
+  {name:"名古屋歴史科学研究会", value:80, field:"史学"},
+  {name:"奈良大学史学会", value:80, field:"史学"},
+  {name:"奈良歴史研究会", value:80, field:"史学"},
+  {name:"新潟史学会", value:80, field:"史学"},
+  {name:"日本アメリカ史学会", value:80, field:"史学"},
+  {name:"日本環太平洋学会", value:80, field:"史学"},
+  {name:"日本古文書学会", value:80, field:"史学"},
+  {name:"日本史攷究会", value:80, field:"史学"},
+  {name:"日本生活文化史学会", value:80, field:"史学"},
+  {name:"日本風俗史学会", value:80, field:"史学"},
+  {name:"白山史学会", value:80, field:"史学"},
+  {name:"白東史学会", value:80, field:"史学"},
+  {name:"東アジア近代史学会", value:80, field:"史学"},
+  {name:"広島西洋史学研究会", value:80, field:"史学"},
+  {name:"福島大学史学会", value:80, field:"史学"},
+  {name:"佛教史学会", value:80, field:"史学"},
+  {name:"文化史学会", value:80, field:"史学"},
+  {name:"別府大学史学研究会", value:80, field:"史学"},
+  {name:"法政大学史学会", value:80, field:"史学"},
+  {name:"立教大学史学会", value:80, field:"史学"},
+  {name:"立命館史学会", value:80, field:"史学"},
+  {name:"史学研究会", value:80, field:"史学"},
+  {name:"歴史科学協議会", value:80, field:"史学"},
+  {name:"歴史学会", value:80, field:"史学"},
+  {name:"歴史地震研究会", value:80, field:"史学"},
+  {name:"歴史地理学会", value:80, field:"史学"},
+  {name:"ロシア史研究会", value:80, field:"史学"},
+  {name:"六朝学術学会", value:80, field:"史学"},
+  {name:"龍谷史学会", value:80, field:"史学"},
+  {name:"智山勧学会", value:80, field:"史学"},
+  {name:"千葉歴史学会", value:80, field:"史学"},
+  {name:"茶の湯文化学会", value:80, field:"史学"},
+  {name:"中國出土資料學會", value:80, field:"史学"},
+  {name:"中国文化学会", value:80, field:"史学"},
+  {name:"中国文史哲研究会", value:80, field:"史学"},
+  {name:"中世史研究会", value:80, field:"史学"},
+  {name:"鉄道史学会", value:80, field:"史学"},
+  {name:"東海印度学仏教学会", value:80, field:"史学"},
+  {name:"唐代史研究会", value:80, field:"史学"},
+  {name:"東南アジア考古学会", value:80, field:"史学"},
+  {name:"東洋音楽学会", value:80, field:"史学"},
+  {name:"総合女性史学会", value:80, field:"史学"},
+  {name:"体育史学会", value:80, field:"史学"},
+  {name:"台湾史研究会", value:80, field:"史学"},
+  {name:"民族藝術学会", value:80, field:"史学"},
+  {name:"軍事史学会", value:80, field:"史学"},
+  {name:"産業考古学会", value:80, field:"史学"},
+  {name:"全国大学書道学会", value:80, field:"史学"},
+  {name:"東洋陶磁学会", value:80, field:"史学"},
+  {name:"富山考古学会", value:80, field:"史学"},
+  {name:"北海道民族学会", value:80, field:"史学"},
+  {name:"民俗芸能学会", value:80, field:"史学"},
+  {name:"明治維新史学会", value:80, field:"史学"},
+  {name:"明治美術学会", value:80, field:"史学"},
+  {name:"洋学史学会", value:80, field:"史学"},
+  {name:"アジア民族造形学会", value:80, field:"史学"},
+  {name:"日本アニメーション学会", value:80, field:"史学"},
+  {name:"「歴史科学と教育」研究会", value:80, field:"史学"},
+  {name:"美術史学会", value:80, field:"史学"},
+  {name:"書学書道史学会", value:80, field:"史学"},
+  {name:"国際浮世絵学会", value:80, field:"史学"},
+  {name:"意匠学会", value:80, field:"史学"},
+  {name:"日本映像学会", value:80, field:"史学"},
+  {name:"日本演劇学会", value:80, field:"史学"},
+  {name:"日本音楽学会", value:80, field:"史学"},
+  {name:"舞踊学会", value:80, field:"史学"},
+  {name:"服飾美学会", value:80, field:"史学"},
+  {name:"東北芸術文化学会", value:80, field:"史学"},
+  {name:"広島芸術学会", value:80, field:"史学"},
+  {name:"古事記学会", value:80, field:"史学"},
+  {name:"古代アメリカ学会", value:80, field:"史学"},
+  {name:"交通史学会", value:80, field:"史学"},
+  {name:"比較家族史学会", value:80, field:"史学"},
+  {name:"比較都市史研究会", value:80, field:"史学"},
+  {name:"比較文明学会", value:80, field:"史学"},
+  {name:"東アジア学会", value:80, field:"史学"},
+  {name:"日本中東学会", value:713, field:"地域研究"},
+  {name:"東南アジア学会", value:550, field:"地域研究"},
+  {name:"日本アフリカ学会", value:830, field:"地域研究"},
+  {name:"日本現代中国学会", value:700, field:"地域研究"},
+  {name:"アメリカ学会", value:1300, field:"地域研究"},
+  {name:"ラテン・アメリカ政経学会", value:80, field:"地域研究"},
+  {name:"ロシア・東欧学会", value:80, field:"地域研究"},
+  {name:"日本オセアニア学会", value:80, field:"地域研究"},
+  {name:"日本カナダ学会", value:80, field:"地域研究"},
+  {name:"現代韓国朝鮮学会", value:80, field:"地域研究"},
+  {name:"国際アジア共同体学会", value:80, field:"地域研究"},
+  {name:"日本南アジア学会", value:80, field:"地域研究"},
+  {name:"日本EU学会", value:80, field:"地域研究"},
+  {name:"オーストラリア学会", value:80, field:"地域研究"},
+  {name:"日本台湾学会", value:80, field:"地域研究"},
+  {name:"日本ナイル・エチオピア学会", value:80, field:"地域研究"},
+  {name:"日本マレーシア学会", value:80, field:"地域研究"},
+  {name:"応用地域学会", value:80, field:"地域研究"},
+  {name:"太平洋学会", value:80, field:"地域研究"},
+  {name:"日本西アジア考古学会", value:80, field:"地域研究"},
+  {name:"日本タイ学会", value:80, field:"地域研究"},
+  {name:"日本スラブ東欧学会", value:80, field:"地域研究"},
+  {name:"日本比較文化学会", value:80, field:"地域研究"},
+  {name:"日本アジア協会", value:80, field:"地域研究"},
+  {name:"日本モンゴル学会", value:80, field:"地域研究"},
+  {name:"日本ラテンアメリカ学会", value:80, field:"地域研究"},
+  {name:"東洋学・アジア研究連絡協議会", value:80, field:"地域研究"},
+  {name:"利根川文化研究会", value:80, field:"地域研究"},
+  {name:"北東アジア学会", value:80, field:"地域研究"},
+  {name:"イタリア学会", value:80, field:"地域研究"},
+  {name:"地中海学会", value:80, field:"地域研究"},
+  {name:"日本島嶼学会", value:80, field:"地域研究"},
+  {name:"地域研究学会連絡協議会", value:80, field:"地域研究"},
+  {name:"地域研究コンソーシアム", value:80, field:"地域研究"},
+  {name:"アジア政経学会", value:977, field:"地域研究"},
+  {name:"日本私法学会", value:2000, field:"法学"},
+  {name:"日本公法学会", value:1163, field:"法学"},
+  {name:"憲法学会", value:80, field:"法学"},
+  {name:"憲法理論研究会", value:80, field:"法学"},
+  {name:"臨床法学教育学会", value:80, field:"法学"},
+  {name:"交通権学会", value:80, field:"法学"},
+  {name:"資産評価政策学会", value:80, field:"法学"},
+  {name:"比較憲法学会", value:80, field:"法学"},
+  {name:"比較法学会", value:80, field:"法学"},
+  {name:"非営利法人研究学会", value:80, field:"法学"},
+  {name:"日本法哲学会", value:80, field:"法学"},
+  {name:"九州法学会", value:80, field:"法学"},
+  {name:"日本民事訴訟法学会", value:80, field:"法学"},
+  {name:"国際私法学会", value:80, field:"法学"},
+  {name:"法制史学会", value:80, field:"法学"},
+  {name:"日本刑法学会", value:80, field:"法学"},
+  {name:"日本労働法学会", value:80, field:"法学"},
+  {name:"日本経済法学会", value:80, field:"法学"},
+  {name:"日本税法学会", value:80, field:"法学"},
+  {name:"日本法政学会", value:80, field:"法学"},
+  {name:"日本空法学会", value:80, field:"法学"},
+  {name:"日本観光学会", value:80, field:"法学"},
+  {name:"日本職業教育学会", value:80, field:"法学"},
+  {name:"全国憲法研究会", value:80, field:"法学"},
+  {name:"日本広告学会", value:80, field:"法学"},
+  {name:"日本医事法学会", value:80, field:"法学"},
+  {name:"日本教育法学会", value:80, field:"法学"},
+  {name:"企業法学会", value:80, field:"法学"},
+  {name:"情報ネットワーク法学会", value:80, field:"法学"},
+  {name:"民主主義科学者協会法律部会", value:80, field:"法学"},
+  {name:"防衛法学会", value:80, field:"法学"},
+  {name:"環境法政策学会", value:80, field:"法学"},
+  {name:"法と心理学会", value:80, field:"法学"},
+  {name:"日本社会保障法学会", value:80, field:"法学"},
+  {name:"日本知財学会", value:80, field:"法学"},
+  {name:"日本賠償科学会", value:80, field:"法学"},
+  {name:"日本法科学技術学会", value:80, field:"法学"},
+  {name:"日本法中毒学会", value:80, field:"法学"},
+  {name:"日本スポーツ法学会", value:80, field:"法学"},
+  {name:"日本政治学会", value:1824, field:"政治学"},
+  {name:"日本国際政治学会", value:2000, field:"政治学"},
+  {name:"公共選択学会", value:80, field:"政治学"},
+  {name:"日本地方政治学会・日本地域政治学会", value:80, field:"政治学"},
+  {name:"日本公共政策学会", value:910, field:"政治学"},
+  {name:"日本選挙学会", value:80, field:"政治学"},
+  {name:"日本地域政策学会", value:80, field:"政治学"},
+  {name:"日本地方自治学会", value:80, field:"政治学"},
+  {name:"日本体育・スポーツ政策学会", value:80, field:"政治学"},
+  {name:"日本比較政治学会", value:80, field:"政治学"},
+  {name:"日本行政学会", value:80, field:"政治学"},
+  {name:"日本医療福祉政策学会", value:80, field:"政治学"},
+  {name:"日本経済学会", value:3200, field:"経済学"},
+  {name:"日本金融学会", value:1263, field:"経済学"},
+  {name:"日本財政学会", value:800, field:"経済学"},
+  {name:"社会経済史学会", value:1400, field:"経済学"},
+  {name:"社会政策学会", value:1169, field:"経済学"},
+  {name:"日本保険学会", value:859, field:"経済学"},
+  {name:"政治経済学・経済史学会", value:718, field:"経済学"},
+  {name:"経済理論学会", value:700, field:"経済学"},
+  {name:"日本経済政策学会", value:791, field:"経済学"},
+  {name:"生活経済学会", value:586, field:"経済学"},
+  {name:"経済地理学会", value:608, field:"経済学"},
+  {name:"日本地域学会", value:567, field:"経済学"},
+  {name:"日本経済会計学会", value:547, field:"経済学"},
+  {name:"経済学史学会", value:489, field:"経済学"},
+  {name:"日本交通学会", value:470, field:"経済学"},
+  {name:"日本物流学会", value:448, field:"経済学"},
+  {name:"進化経済学会", value:341, field:"経済学"},
+  {name:"日本人口学会", value:343, field:"経済学"},
+  {name:"日本地方自治研究学会", value:304, field:"経済学"},
+  {name:"日本地域経済学会", value:289, field:"経済学"},
+  {name:"経済社会学会", value:247, field:"経済学"},
+  {name:"公益事業学会", value:332, field:"経済学"},
+  {name:"日本貿易学会", value:318, field:"経済学"},
+  {name:"経済統計学会", value:80, field:"経済学"},
+  {name:"証券経済学会", value:80, field:"経済学"},
+  {name:"北日本漁業経済学会", value:80, field:"経済学"},
+  {name:"基礎経済科学研究所", value:80, field:"経済学"},
+  {name:"中部農業経済学会", value:80, field:"経済学"},
+  {name:"日本農業史学会", value:80, field:"経済学"},
+  {name:"日本年金学会", value:80, field:"経済学"},
+  {name:"医療経済学会", value:80, field:"経済学"},
+  {name:"景気循環学会", value:80, field:"経済学"},
+  {name:"東北農業経済学会", value:80, field:"経済学"},
+  {name:"日本消費者教育学会", value:80, field:"経済学"},
+  {name:"日本地方財政学会", value:80, field:"経済学"},
+  {name:"日本租税理論学会", value:80, field:"経済学"},
+  {name:"日本繊維製品消費科学会", value:80, field:"経済学"},
+  {name:"日本ファイナンス学会", value:80, field:"経済学"},
+  {name:"日本不動産学会", value:80, field:"経済学"},
+  {name:"東北経済学会", value:80, field:"経済学"},
+  {name:"日本経済学会連合", value:80, field:"経済学"},
+  {name:"日本国際経済学会", value:80, field:"経済学"},
+  {name:"北海道農業経済学会", value:80, field:"経済学"},
+  {name:"漁業経済学会", value:80, field:"経済学"},
+  {name:"農業問題研究学会", value:80, field:"経済学"},
+  {name:"信用理論研究学会", value:80, field:"経済学"},
+  {name:"アジア市場経済学会", value:204, field:"経済学"},
+  {name:"日本消費経済学会", value:192, field:"経済学"},
+  {name:"日本比較経営学会", value:192, field:"経済学"},
+  {name:"日本港湾経済学会", value:188, field:"経済学"},
+  {name:"文化経済学会〈日本〉", value:420, field:"経済学"},
+  {name:"比較経済体制学会", value:160, field:"経済学"},
+  {name:"国際公共経済学会", value:136, field:"経済学"},
+  {name:"日本海運経済学会", value:258, field:"経済学"},
+  {name:"林業経済学会", value:80, field:"経済学"},
+  {name:"林業経済研究所", value:80, field:"経済学"},
+  {name:"産学連携学会", value:80, field:"経済学"},
+  {name:"政策情報学会", value:80, field:"経済学"},
+  {name:"日本経営学会", value:1745, field:"経営学"},
+  {name:"組織学会", value:1964, field:"経営学"},
+  {name:"日本マーケティング学会", value:80, field:"経営学"},
+  {name:"日本原価計算研究学会", value:80, field:"経営学"},
+  {name:"日本ベンチャー学会", value:80, field:"経営学"},
+  {name:"日本ナレッジ・マネジメント学会", value:80, field:"経営学"},
+  {name:"日本会計研究学会", value:1596, field:"経営学"},
+  {name:"日本商業学会", value:1004, field:"経営学"},
+  {name:"日本経営倫理学会", value:539, field:"経営学"},
+  {name:"日本労務学会", value:795, field:"経営学"},
+  {name:"経営行動科学学会", value:796, field:"経営学"},
+  {name:"国際ビジネス研究学会", value:591, field:"経営学"},
+  {name:"経営史学会", value:718, field:"経営学"},
+  {name:"日本管理会計学会", value:673, field:"経営学"},
+  {name:"日本経営システム学会", value:646, field:"経営学"},
+  {name:"中国経済経営学会", value:478, field:"経営学"},
+  {name:"国際会計研究学会", value:472, field:"経営学"},
+  {name:"異文化経営学会", value:453, field:"経営学"},
+  {name:"日本マネジメント学会", value:556, field:"経営学"},
+  {name:"労務理論学会", value:239, field:"経営学"},
+  {name:"多国籍企業学会", value:268, field:"経営学"},
+  {name:"産業学会", value:237, field:"経営学"},
+  {name:"経営学史学会", value:223, field:"経営学"},
+  {name:"経営哲学学会", value:248, field:"経営学"},
+  {name:"アジア経営学会", value:306, field:"経営学"},
+  {name:"日本会計史学会", value:167, field:"経営学"},
+  {name:"日本リスクマネジメント学会", value:150, field:"経営学"},
+  {name:"経営行動研究学会", value:331, field:"経営学"},
+  {name:"会計理論学会", value:134, field:"経営学"},
+  {name:"国際ビジネスコミュニケーション学会", value:134, field:"経営学"},
+  {name:"日本経営数学会", value:110, field:"経営学"},
+  {name:"日本商品学会", value:79, field:"経営学"},
+  {name:"工業経営研究学会", value:80, field:"経営学"},
+  {name:"KJ法学会", value:80, field:"経営学"},
+  {name:"研究・イノベーション学会", value:80, field:"経営学"},
+  {name:"日本計画行政学会", value:80, field:"経営学"},
+  {name:"日本経営財務研究学会", value:80, field:"経営学"},
+  {name:"日本創造学会", value:80, field:"経営学"},
+  {name:"日本中小企業学会", value:80, field:"経営学"},
+  {name:"国際服飾学会", value:80, field:"経営学"},
+  {name:"税務会計研究学会", value:80, field:"経営学"},
+  {name:"日本消費者行動研究学会", value:80, field:"経営学"},
+  {name:"日本生産管理学会", value:80, field:"経営学"},
+  {name:"日本セキュリティ・マネジメント学会", value:80, field:"経営学"},
+  {name:"日本スポーツ産業学会", value:80, field:"経営学"},
+  {name:"日本品質管理学会", value:80, field:"経営学"},
+  {name:"日本ビジネス実務学会", value:80, field:"経営学"},
+  {name:"日本ビジネス・マネジメント学会", value:80, field:"経営学"},
+  {name:"日本マーケティング・サイエンス学会", value:80, field:"経営学"},
+  {name:"日本ホスピタリティ・マネジメント学会", value:80, field:"経営学"},
+  {name:"日本包装学会", value:80, field:"経営学"},
+  {name:"日本流通学会", value:80, field:"経営学"},
+  {name:"経営関連学会協議会", value:80, field:"経営学"},
+  {name:"国際プロジェクト・プログラムマネジメント学会", value:80, field:"経営学"},
+  {name:"日本ロジスティクスシステム学会", value:80, field:"経営学"},
+  {name:"日本労使関係研究協会", value:80, field:"経営学"},
+  {name:"日本ディスクロージャー研究学会", value:80, field:"経営学"},
+  {name:"経営情報学会", value:80, field:"経営学"},
+  {name:"国際戦略経営研究学会", value:80, field:"経営学"},
+  {name:"プロジェクトマネジメント学会", value:80, field:"経営学"},
+  {name:"ファッションビジネス学会", value:80, field:"経営学"},
+
+  {name:"日本植物学会", value:2000, field:"基礎生物学"},
+  {name:"日本遺伝学会", value:867, field:"基礎生物学"},
+  {name:"日本生化学会", value:7800, field:"基礎生物学"},
+  {name:"硬組織再生生物学会", value:80, field:"基礎生物学"},
+  {name:"日本細胞生物学会", value:80, field:"基礎生物学"},
+  {name:"日本植物生理学会", value:80, field:"基礎生物学"},
+  {name:"日本発生生物学会", value:80, field:"基礎生物学"},
+  {name:"染色体学会", value:80, field:"基礎生物学"},
+  {name:"生命の起原および進化学会", value:80, field:"基礎生物学"},
+  {name:"日本ゲノム微生物学会", value:80, field:"基礎生物学"},
+  {name:"国際意識科学会", value:80, field:"基礎生物学"},
+  {name:"日本電気泳動学会", value:80, field:"基礎生物学"},
+  {name:"日本バイオインフォマティクス学会", value:80, field:"基礎生物学"},
+  {name:"日本糖質学会", value:80, field:"基礎生物学"},
+  {name:"日本進化学会", value:80, field:"基礎生物学"},
+  {name:"「野生生物と社会」学会", value:80, field:"基礎生物学"},
+  {name:"日本生物高分子学会", value:80, field:"基礎生物学"},
+  {name:"水産育種研究会", value:80, field:"基礎生物学"},
+  {name:"腸内細菌学会", value:80, field:"基礎生物学"},
+  {name:"低温生物工学会", value:80, field:"基礎生物学"},
+  {name:"D-アミノ酸学会", value:80, field:"基礎生物学"},
+  {name:"電子スピンサイエンス学会", value:80, field:"基礎生物学"},
+  {name:"ナノ・バイオメディカル学会", value:80, field:"基礎生物学"},
+  {name:"におい・かおり環境協会", value:80, field:"基礎生物学"},
+  {name:"日本昆虫分類学会", value:80, field:"基礎生物学"},
+  {name:"日本RNA学会", value:80, field:"基礎生物学"},
+  {name:"日本貝類学会", value:80, field:"基礎生物学"},
+  {name:"日本分類学会連合", value:80, field:"基礎生物学"},
+  {name:"国際染色体植物学会", value:80, field:"基礎生物学"},
+  {name:"日本植物細胞分子生物学会", value:80, field:"基礎生物学"},
+  {name:"日本植物分類学会", value:80, field:"基礎生物学"},
+  {name:"日本人類学会", value:80, field:"基礎生物学"},
+  {name:"日本植物形態学会", value:80, field:"基礎生物学"},
+  {name:"日本蛋白質科学会", value:80, field:"基礎生物学"},
+  {name:"日本地衣学会", value:80, field:"基礎生物学"},
+  {name:"日本蘚苔類学会", value:80, field:"基礎生物学"},
+  {name:"日本藻類学会", value:80, field:"基礎生物学"},
+  {name:"日本比較生理生化学会", value:80, field:"基礎生物学"},
+  {name:"日本微生物生態学会", value:80, field:"基礎生物学"},
+  {name:"日本微生物資源学会", value:80, field:"基礎生物学"},
+  {name:"日本付着生物学会", value:80, field:"基礎生物学"},
+  {name:"日本分子生物学会", value:80, field:"基礎生物学"},
+  {name:"日本プランクトン学会", value:80, field:"基礎生物学"},
+  {name:"日本ペプチド学会", value:80, field:"基礎生物学"},
+  {name:"日本ベントス学会", value:80, field:"基礎生物学"},
+  {name:"日本ペストロジー学会", value:80, field:"基礎生物学"},
+  {name:"日本防菌防黴学会", value:80, field:"基礎生物学"},
+  {name:"日本放線菌学会", value:80, field:"基礎生物学"},
+  {name:"日本哺乳動物卵子学会", value:80, field:"基礎生物学"},
+  {name:"日本哺乳類学会", value:80, field:"基礎生物学"},
+  {name:"日本動物細胞工学会", value:80, field:"基礎生物学"},
+  {name:"日本生理人類学会", value:80, field:"基礎生物学"},
+  {name:"日本数理生物学会", value:80, field:"基礎生物学"},
+  {name:"日本陸水学会", value:80, field:"基礎生物学"},
+  {name:"日本鱗翅学会", value:80, field:"基礎生物学"},
+  {name:"日本霊長類学会", value:80, field:"基礎生物学"},
+  {name:"日本光合成研究会", value:80, field:"基礎生物学"},
+  {name:"日本メンデル協会", value:80, field:"基礎生物学"},
+  {name:"日本微生物学連盟", value:80, field:"基礎生物学"},
+  {name:"日本ビフィズス菌センター", value:80, field:"基礎生物学"},
+  {name:"ヒコビア会", value:80, field:"基礎生物学"},
+  {name:"根研究会", value:80, field:"基礎生物学"},
+  {name:"自然史学会連合", value:80, field:"基礎生物学"},
+  {name:"生物科学学会連合", value:80, field:"基礎生物学"},
+  {name:"植生学会", value:80, field:"基礎生物学"},
+  {name:"生き物文化誌学会", value:80, field:"基礎生物学"},
+  {name:"CBI学会", value:80, field:"基礎生物学"},
+  {name:"セルロース学会", value:80, field:"基礎生物学"},
+  {name:"日本アイソトープ協会", value:80, field:"基礎生物学"},
+  {name:"日本安定同位体・生体ガス医学応用学会", value:80, field:"基礎生物学"},
+  {name:"日本生態学会", value:4200, field:"統合生物学"},
+  {name:"日本動物学会", value:2700, field:"統合生物学"},
+  {name:"日本生物物理学会", value:3200, field:"統合生物学"},
+  {name:"日本宇宙生物科学会", value:80, field:"統合生物学"},
+  {name:"日本比較内分泌学会", value:80, field:"統合生物学"},
+  {name:"極限環境生物学会", value:80, field:"統合生物学"},
+  {name:"国際原生生物学会", value:80, field:"統合生物学"},
+  {name:"古脊椎動物学会", value:80, field:"統合生物学"},
+  {name:"種生物学会", value:80, field:"統合生物学"},
+  {name:"森林野生動物研究会", value:80, field:"統合生物学"},
+  {name:"動物の行動と管理学会", value:80, field:"統合生物学"},
+  {name:"日本きのこ学会", value:80, field:"統合生物学"},
+  {name:"日本魚類学会", value:80, field:"統合生物学"},
+  {name:"日本菌学会", value:80, field:"統合生物学"},
+  {name:"日本蜘蛛学会", value:80, field:"統合生物学"},
+  {name:"日本景観生態学会", value:80, field:"統合生物学"},
+  {name:"日本蚕糸学会", value:80, field:"統合生物学"},
+  {name:"日本時間生物学会", value:80, field:"統合生物学"},
+  {name:"日本植物病理学会", value:80, field:"統合生物学"},
+  {name:"日本生物教育学会", value:80, field:"統合生物学"},
+  {name:"日本生物地理学会", value:80, field:"統合生物学"},
+  {name:"日本線虫学会", value:80, field:"統合生物学"},
+  {name:"日本ダニ学会", value:80, field:"統合生物学"},
+  {name:"日本鳥学会", value:80, field:"統合生物学"},
+  {name:"日本蝶類学会", value:80, field:"統合生物学"},
+  {name:"個体群生態学会", value:80, field:"統合生物学"},
+  {name:"子どもと自然学会", value:80, field:"統合生物学"},
+  {name:"自然環境復元学会", value:80, field:"統合生物学"},
+  {name:"森林遺伝育種学会", value:80, field:"統合生物学"},
+  {name:"森林立地学会", value:80, field:"統合生物学"},
+  {name:"日本動物分類学会", value:80, field:"統合生物学"},
+  {name:"日本ウマ科学会", value:80, field:"統合生物学"},
+  {name:"応用動物行動学会", value:80, field:"統合生物学"},
+  {name:"日本動物行動学会", value:80, field:"統合生物学"},
+  {name:"日本熱帯生態学会", value:80, field:"統合生物学"},
+  {name:"マリンバイオテクノロジー学会", value:80, field:"統合生物学"},
+  {name:"日本花粉学会", value:80, field:"統合生物学"},
+  {name:"日本繁殖生物学会", value:80, field:"統合生物学"},
+  {name:"日本獣医学会", value:3700, field:"農学"},
+  {name:"日本農薬学会", value:80, field:"農学"},
+  {name:"日本農業工学会", value:80, field:"農学"},
+  {name:"地域漁業学会", value:80, field:"農学"},
+  {name:"棚田学会", value:80, field:"農学"},
+  {name:"日本農業法学会", value:80, field:"農学"},
+  {name:"日本酪農科学会", value:80, field:"農学"},
+  {name:"家畜栄養生理研究会", value:80, field:"農学"},
+  {name:"関西病虫害研究会", value:80, field:"農学"},
+  {name:"九州病害虫研究会", value:80, field:"農学"},
+  {name:"北日本病害虫研究会", value:80, field:"農学"},
+  {name:"北陸病害虫研究会", value:80, field:"農学"},
+  {name:"日本獣医針灸学研究会", value:80, field:"農学"},
+  {name:"日本豚病研究会", value:80, field:"農学"},
+  {name:"日本緬羊研究会", value:80, field:"農学"},
+  {name:"林木育種協会", value:80, field:"農学"},
+  {name:"肉用牛研究会", value:80, field:"農学"},
+  {name:"農林水産技術情報協会", value:80, field:"農学"},
+  {name:"動物臨床医学会", value:80, field:"農学"},
+  {name:"水産海洋学会", value:80, field:"農学"},
+  {name:"日本獣医画像診断学会", value:80, field:"農学"},
+  {name:"日本獣医公衆衛生学会", value:80, field:"農学"},
+  {name:"日本獣医循環器学会", value:80, field:"農学"},
+  {name:"日本暖地畜産学会", value:80, field:"農学"},
+  {name:"日本動物原虫病学会", value:80, field:"農学"},
+  {name:"日本農業教育学会", value:80, field:"農学"},
+  {name:"日本農業市場学会", value:80, field:"農学"},
+  {name:"日本農業普及学会", value:80, field:"農学"},
+  {name:"日本農村生活学会", value:80, field:"農学"},
+  {name:"日本シルク学会", value:80, field:"農学"},
+  {name:"日本ブドウ・ワイン学会", value:80, field:"農学"},
+  {name:"日本ペット栄養学会", value:80, field:"農学"},
+  {name:"日本作物学会", value:1300, field:"農学"},
+  {name:"日本農業経済学会", value:1500, field:"農学"},
+  {name:"日本水産学会", value:4200, field:"農学"},
+  {name:"日本農芸化学会", value:11000, field:"農学"},
+  {name:"日本森林学会", value:2400, field:"農学"},
+  {name:"日本造園学会", value:2600, field:"農学"},
+  {name:"日本畜産学会", value:2600, field:"農学"},
+  {name:"日本土壌肥料学会", value:2600, field:"農学"},
+  {name:"日本育種学会", value:2000, field:"農学"},
+  {name:"日本木材学会", value:1900, field:"農学"},
+  {name:"鶏病研究会", value:80, field:"農学"},
+  {name:"農業食料工学会", value:80, field:"農学"},
+  {name:"獣医疫学会", value:80, field:"農学"},
+  {name:"サゴヤシ学会", value:80, field:"農学"},
+  {name:"日本小動物獣医学会", value:80, field:"農学"},
+  {name:"日本応用糖質科学会", value:80, field:"農学"},
+  {name:"日本応用動物昆虫学会", value:80, field:"農学"},
+  {name:"日本家禽学会", value:80, field:"農学"},
+  {name:"日本砂丘学会", value:80, field:"農学"},
+  {name:"日本雑草学会", value:80, field:"農学"},
+  {name:"システム農学会", value:80, field:"農学"},
+  {name:"実践総合農学会", value:80, field:"農学"},
+  {name:"日本芝草学会", value:80, field:"農学"},
+  {name:"樹木医学会", value:80, field:"農学"},
+  {name:"森林計画学会", value:80, field:"農学"},
+  {name:"日本水産工学会", value:80, field:"農学"},
+  {name:"日本草地学会", value:80, field:"農学"},
+  {name:"地域農林経済学会", value:80, field:"農学"},
+  {name:"日本動物遺伝育種学会", value:80, field:"農学"},
+  {name:"日本土壌微生物学会", value:80, field:"農学"},
+  {name:"日本熱帯農業学会", value:80, field:"農学"},
+  {name:"日本農業気象学会", value:80, field:"農学"},
+  {name:"日本農業経営学会", value:80, field:"農学"},
+  {name:"農業施設学会", value:80, field:"農学"},
+  {name:"日本農作業学会", value:80, field:"農学"},
+  {name:"農業情報学会", value:80, field:"農学"},
+  {name:"農業農村工学会", value:80, field:"農学"},
+  {name:"農村計画学会", value:80, field:"農学"},
+  {name:"日本フードシステム学会", value:80, field:"農学"},
+  {name:"復興農学会", value:80, field:"農学"},
+  {name:"日本ペドロジー学会", value:80, field:"農学"},
+  {name:"日本木材加工技術協会", value:80, field:"農学"},
+  {name:"日本木材保存協会", value:80, field:"農学"},
+  {name:"木質構造研究会", value:80, field:"農学"},
+  {name:"日本有機農業学会", value:80, field:"農学"},
+  {name:"日本水産増殖学会", value:80, field:"農学"},
+  {name:"園芸学会", value:80, field:"農学"},
+  {name:"日本食品科学工学会", value:1800, field:"食料科学"},
+  {name:"日本食物繊維学会", value:80, field:"食料科学"},
+  {name:"日本食品化学学会", value:80, field:"食料科学"},
+  {name:"日本ビタミン学会", value:80, field:"食料科学"},
+  {name:"日本味と匂学会", value:80, field:"食料科学"},
+  {name:"日本アミノ酸学会", value:80, field:"食料科学"},
+  {name:"日本機能水学会", value:80, field:"食料科学"},
+  {name:"日本協同組合学会", value:80, field:"食料科学"},
+  {name:"日本健康医学会", value:80, field:"食料科学"},
+  {name:"日本国際教養学会", value:80, field:"食料科学"},
+  {name:"日本子ども健康科学会", value:80, field:"食料科学"},
+  {name:"日本コンピュータ化学会", value:80, field:"食料科学"},
+  {name:"日本食生活学会", value:80, field:"食料科学"},
+  {name:"日本機能性食品医用学会", value:80, field:"食料科学"},
+  {name:"日本栄養改善学会", value:80, field:"食料科学"},
+  {name:"日本食育学会", value:80, field:"食料科学"},
+  {name:"美味技術研究会", value:80, field:"食料科学"},
+  {name:"日本食品衛生学会", value:80, field:"食料科学"},
+  {name:"日本食品工学会", value:80, field:"食料科学"},
+  {name:"日本食品微生物学会", value:80, field:"食料科学"},
+  {name:"日本食品保蔵科学会", value:80, field:"食料科学"},
+  {name:"日本醸造学会", value:80, field:"食料科学"},
+  {name:"日本調理科学会", value:80, field:"食料科学"},
+  {name:"日本乳酸菌学会", value:80, field:"食料科学"},
+  {name:"日本ベジタリアン学会", value:80, field:"食料科学"},
+  {name:"日本フードサービス学会", value:80, field:"食料科学"},
+  {name:"日本栄養・食糧学会", value:4000, field:"食料科学"},
+  {name:"日本解剖学会", value:2138, field:"基礎医学"},
+  {name:"日本生理学会", value:2746, field:"基礎医学"},
+  {name:"日本薬理学会", value:3727, field:"基礎医学"},
+  {name:"日本病理学会", value:4865, field:"基礎医学"},
+  {name:"日本細菌学会", value:2000, field:"基礎医学"},
+  {name:"日本免疫学会", value:3400, field:"基礎医学"},
+  {name:"日本人類遺伝学会", value:6326, field:"基礎医学"},
+  {name:"日本再生医療学会", value:6451, field:"基礎医学"},
+  {name:"日本ウイルス学会", value:1800, field:"基礎医学"},
+  {name:"日本法医学会", value:1227, field:"基礎医学"},
+  {name:"日本医真菌学会", value:905, field:"基礎医学"},
+  {name:"日本寄生虫学会", value:600, field:"基礎医学"},
+  {name:"日本医史学会", value:650, field:"基礎医学"},
+  {name:"日本神経病理学会", value:847, field:"基礎医学"},
+  {name:"日本先天異常学会", value:605, field:"基礎医学"},
+  {name:"日本平滑筋学会", value:396, field:"基礎医学"},
+  {name:"日本バイオイメージング学会", value:80, field:"基礎医学"},
+  {name:"日本酸化ストレス学会", value:80, field:"基礎医学"},
+  {name:"日本脂質生化学会", value:80, field:"基礎医学"},
+  {name:"日本毒性病理学会", value:80, field:"基礎医学"},
+  {name:"秋田医学会", value:80, field:"基礎医学"},
+  {name:"岡山医学会", value:80, field:"基礎医学"},
+  {name:"杏林医学会", value:80, field:"基礎医学"},
+  {name:"慶應医学会", value:80, field:"基礎医学"},
+  {name:"東北医学会", value:80, field:"基礎医学"},
+  {name:"北海道医学会", value:80, field:"基礎医学"},
+  {name:"日本医学物理学会", value:80, field:"基礎医学"},
+  {name:"道南医学会", value:80, field:"基礎医学"},
+  {name:"日本大学医学会", value:80, field:"基礎医学"},
+  {name:"弘前医学会", value:80, field:"基礎医学"},
+  {name:"日本感染症医薬品協会", value:80, field:"基礎医学"},
+  {name:"日本化粧品技術者会", value:80, field:"基礎医学"},
+  {name:"山口大学医学会", value:80, field:"基礎医学"},
+  {name:"岩手医学会", value:80, field:"基礎医学"},
+  {name:"福島医学会", value:80, field:"基礎医学"},
+  {name:"東北整形災害外科学会", value:80, field:"基礎医学"},
+  {name:"日本エイズ学会", value:80, field:"基礎医学"},
+  {name:"15年戦争と日本の医学医療研究会", value:80, field:"基礎医学"},
+  {name:"千葉医学会", value:80, field:"基礎医学"},
+  {name:"日本アンドロロジー学会", value:80, field:"基礎医学"},
+  {name:"日本実験動物学会", value:80, field:"基礎医学"},
+  {name:"日本消化吸収学会", value:80, field:"基礎医学"},
+  {name:"日本神経化学会", value:80, field:"基礎医学"},
+  {name:"日本神経科学学会", value:80, field:"基礎医学"},
+  {name:"日本神経精神薬理学会", value:80, field:"基礎医学"},
+  {name:"日本生殖免疫学会", value:80, field:"基礎医学"},
+  {name:"日本精神病理学会", value:80, field:"基礎医学"},
+  {name:"日本生物学的精神医学会", value:80, field:"基礎医学"},
+  {name:"日本先天代謝異常学会", value:80, field:"基礎医学"},
+  {name:"日本組織細胞化学会", value:80, field:"基礎医学"},
+  {name:"日本組織適合性学会", value:80, field:"基礎医学"},
+  {name:"日本組織培養学会", value:80, field:"基礎医学"},
+  {name:"日本臓器保存生物医学会", value:80, field:"基礎医学"},
+  {name:"日本動物実験代替法学会", value:80, field:"基礎医学"},
+  {name:"日本ヒト細胞学会", value:80, field:"基礎医学"},
+  {name:"日本病態生理学会", value:80, field:"基礎医学"},
+  {name:"日本放射線影響学会", value:80, field:"基礎医学"},
+  {name:"日本ヘモレオロジー学会", value:80, field:"基礎医学"},
+  {name:"日本保健物理学会", value:80, field:"基礎医学"},
+  {name:"日本良導絡自律神経学会", value:80, field:"基礎医学"},
+  {name:"日本臨床生理学会", value:80, field:"基礎医学"},
+  {name:"日本臨床微生物学会", value:80, field:"基礎医学"},
+  {name:"日本臨床分子形態学会", value:80, field:"基礎医学"},
+  {name:"日本ミトコンドリア学会", value:80, field:"基礎医学"},
+  {name:"日本実験動物技術者協会", value:80, field:"基礎医学"},
+  {name:"日本実験動物環境研究会", value:80, field:"基礎医学"},
+  {name:"東京慈恵会医科大学成医会", value:80, field:"基礎医学"},
+  {name:"放射線生物研究会", value:80, field:"基礎医学"},
+  {name:"マトリックス研究会", value:80, field:"基礎医学"},
+  {name:"日本DNA多型学会", value:80, field:"基礎医学"},
+  {name:"日本頭蓋顎顔面外科学会", value:80, field:"基礎医学"},
+  {name:"日本頭頸部癌学会", value:80, field:"基礎医学"},
+  {name:"日本頭頸部外科学会", value:80, field:"基礎医学"},
+  {name:"日本疼痛学会", value:80, field:"基礎医学"},
+  {name:"日本糖尿病眼学会", value:80, field:"基礎医学"},
+  {name:"日本糖尿病理学療法学会", value:80, field:"基礎医学"},
+  {name:"日本内科学会", value:105000, field:"臨床医学"},
+  {name:"臨床微生物迅速診断研究会", value:80, field:"臨床医学"},
+  {name:"日本うつ病学会", value:80, field:"臨床医学"},
+  {name:"日本児童青年精神医学会", value:80, field:"臨床医学"},
+  {name:"日本耳鼻咽喉科免疫アレルギー学会", value:80, field:"臨床医学"},
+  {name:"日本社会精神医学会", value:80, field:"臨床医学"},
+  {name:"日本弱視斜視学会", value:80, field:"臨床医学"},
+  {name:"日本重症心身障害学会", value:80, field:"臨床医学"},
+  {name:"日本柔道整復接骨医学会", value:80, field:"臨床医学"},
+  {name:"日本手術医学会", value:80, field:"臨床医学"},
+  {name:"日本受精着床学会", value:80, field:"臨床医学"},
+  {name:"日本消化器がん検診学会", value:80, field:"臨床医学"},
+  {name:"日本小児アレルギー学会", value:80, field:"臨床医学"},
+  {name:"日本小児栄養消化器肝臓学会", value:80, field:"臨床医学"},
+  {name:"日本小児がん学会", value:80, field:"臨床医学"},
+  {name:"日本小児感染症学会", value:80, field:"臨床医学"},
+  {name:"日本小児救急医学会", value:80, field:"臨床医学"},
+  {name:"日本小児血液学会", value:80, field:"臨床医学"},
+  {name:"日本小児耳鼻咽喉科学会", value:80, field:"臨床医学"},
+  {name:"日本小児神経外科学会", value:80, field:"臨床医学"},
+  {name:"日本小児心身医学会", value:80, field:"臨床医学"},
+  {name:"日本小児腎臓病学会", value:80, field:"臨床医学"},
+  {name:"日本小児整形外科学会", value:80, field:"臨床医学"},
+  {name:"日本小児精神神経学会", value:80, field:"臨床医学"},
+  {name:"日本小児内分泌学会", value:80, field:"臨床医学"},
+  {name:"日本小児放射線学会", value:80, field:"臨床医学"},
+  {name:"日本褥瘡学会", value:80, field:"臨床医学"},
+  {name:"日本女性心身医学会", value:80, field:"臨床医学"},
+  {name:"日本Shock学会", value:80, field:"臨床医学"},
+  {name:"日本心エコー図学会", value:80, field:"臨床医学"},
+  {name:"日本神経外傷学会", value:80, field:"臨床医学"},
+  {name:"日本神経眼科学会", value:80, field:"臨床医学"},
+  {name:"日本心血管インターベンション学会", value:80, field:"臨床医学"},
+  {name:"日本心臓病学会", value:80, field:"臨床医学"},
+  {name:"日本心不全学会", value:80, field:"臨床医学"},
+  {name:"日本心療内科学会", value:80, field:"臨床医学"},
+  {name:"日本心血管カテーテル治療学会", value:80, field:"臨床医学"},
+  {name:"日本膵臓学会", value:80, field:"臨床医学"},
+  {name:"日本ストーマリハビリテーション学会", value:80, field:"臨床医学"},
+  {name:"日本性感染症学会", value:80, field:"臨床医学"},
+  {name:"日本整形外科スポーツ医学会", value:80, field:"臨床医学"},
+  {name:"日本精神分析学会", value:80, field:"臨床医学"},
+  {name:"日本脊髄外科学会", value:80, field:"臨床医学"},
+  {name:"日本全体構造臨床言語学会", value:80, field:"臨床医学"},
+  {name:"日本創外固定・骨延長学会", value:80, field:"臨床医学"},
+  {name:"日本総合診療医学会", value:80, field:"臨床医学"},
+  {name:"日本総合病院精神医学会", value:80, field:"臨床医学"},
+  {name:"日本蘇生学会", value:80, field:"臨床医学"},
+  {name:"日本早期認知症学会", value:80, field:"臨床医学"},
+  {name:"日本胆道学会", value:80, field:"臨床医学"},
+  {name:"日本超音波検査学会", value:80, field:"臨床医学"},
+  {name:"日本聴覚医学会", value:80, field:"臨床医学"},
+  {name:"日本痛風・核酸代謝学会", value:80, field:"臨床医学"},
+  {name:"日本定位・機能神経外科学会", value:80, field:"臨床医学"},
+  {name:"日本低温医学会", value:80, field:"臨床医学"},
+  {name:"日本脳腫瘍病理学会", value:80, field:"臨床医学"},
+  {name:"日本脳神経CI学会", value:80, field:"臨床医学"},
+  {name:"日本脳卒中の外科学会", value:80, field:"臨床医学"},
+  {name:"日本脳神経外科救急学会", value:80, field:"臨床医学"},
+  {name:"日本ハイパーサーミア学会", value:80, field:"臨床医学"},
+  {name:"日本白内障学会", value:80, field:"臨床医学"},
+  {name:"日本発達障害学会", value:80, field:"臨床医学"},
+  {name:"日本肺サーファクタント・界面医学会", value:80, field:"臨床医学"},
+  {name:"日本鼻科学会", value:80, field:"臨床医学"},
+  {name:"日本比較臨床医学会", value:80, field:"臨床医学"},
+  {name:"日本病院・地域精神医学会", value:80, field:"臨床医学"},
+  {name:"日本美容外科学会", value:80, field:"臨床医学"},
+  {name:"日本腹部救急医学会", value:80, field:"臨床医学"},
+  {name:"日本不整脈学会", value:80, field:"臨床医学"},
+  {name:"日本プライマリ・ケア学会", value:80, field:"臨床医学"},
+  {name:"日本ブリーフセラピー協会", value:80, field:"臨床医学"},
+  {name:"日本VR医学会", value:80, field:"臨床医学"},
+  {name:"日本補完代替医療学会", value:80, field:"臨床医学"},
+  {name:"日本放射線安全管理学会", value:80, field:"臨床医学"},
+  {name:"日本マイクロサージャリー学会", value:80, field:"臨床医学"},
+  {name:"日本母性衛生学会", value:80, field:"臨床医学"},
+  {name:"日本放射線技術学会", value:80, field:"臨床医学"},
+  {name:"日本トラウマティックストレス学会", value:80, field:"臨床医学"},
+  {name:"日本未熟児新生児学会", value:80, field:"臨床医学"},
+  {name:"日本めまい平衡医学会", value:80, field:"臨床医学"},
+  {name:"日本網膜硝子体学会", value:80, field:"臨床医学"},
+  {name:"日本リウマチ・関節外科学会", value:80, field:"臨床医学"},
+  {name:"日本緑内障学会", value:80, field:"臨床医学"},
+  {name:"日本臨床ウイルス学会", value:80, field:"臨床医学"},
+  {name:"日本臨床エンブリオロジスト学会", value:80, field:"臨床医学"},
+  {name:"日本臨床外科学会", value:80, field:"臨床医学"},
+  {name:"日本臨床催眠学会", value:80, field:"臨床医学"},
+  {name:"日本臨床麻酔学会", value:80, field:"臨床医学"},
+  {name:"日本臨床モニター学会", value:80, field:"臨床医学"},
+  {name:"日本リハビリテーション連携科学学会", value:80, field:"臨床医学"},
+  {name:"日本老年泌尿器科学会", value:80, field:"臨床医学"},
+  {name:"日本顔面神経研究会", value:80, field:"臨床医学"},
+  {name:"がん分子標的治療研究会", value:80, field:"臨床医学"},
+  {name:"日本脳神経外科コングレス", value:80, field:"臨床医学"},
+  {name:"日本循環器管理研究協議会", value:80, field:"臨床医学"},
+  {name:"日本小児保健協会", value:80, field:"臨床医学"},
+  {name:"日本作業療法士協会", value:80, field:"臨床医学"},
+  {name:"日本視能訓練士協会", value:80, field:"臨床医学"},
+  {name:"日本胚移植研究会", value:80, field:"臨床医学"},
+  {name:"日本診療放射線技師会", value:80, field:"臨床医学"},
+  {name:"日本理学療法士協会", value:80, field:"臨床医学"},
+  {name:"日本臨床衛生検査技師会", value:80, field:"臨床医学"},
+  {name:"日本ワクチン学会", value:80, field:"臨床医学"},
+  {name:"日本外科学会", value:39000, field:"臨床医学"},
+  {name:"日本内視鏡外科学会", value:15577, field:"臨床医学"},
+  {name:"日本プライマリ・ケア連合学会", value:11989, field:"臨床医学"},
+  {name:"日本骨粗鬆症学会", value:12425, field:"臨床医学"},
+  {name:"日本小児科学会", value:20000, field:"臨床医学"},
+  {name:"日本精神神経学会", value:15000, field:"臨床医学"},
+  {name:"日本循環器学会", value:25000, field:"臨床医学"},
+  {name:"日本眼科学会", value:14000, field:"臨床医学"},
+  {name:"日本糖尿病学会", value:16000, field:"臨床医学"},
+  {name:"日本神経学会", value:9000, field:"臨床医学"},
+  {name:"日本肝臓学会", value:11000, field:"臨床医学"},
+  {name:"日本アレルギー学会", value:11000, field:"臨床医学"},
+  {name:"日本癌治療学会", value:17000, field:"臨床医学"},
+  {name:"日本癌学会", value:16000, field:"臨床医学"},
+  {name:"日本緩和医療学会", value:10000, field:"臨床医学"},
+  {name:"日本形成外科学会", value:5000, field:"臨床医学"},
+  {name:"日本消化器外科学会", value:21000, field:"臨床医学"},
+  {name:"日本消化器内視鏡学会", value:32000, field:"臨床医学"},
+  {name:"日本消化器病学会", value:32000, field:"臨床医学"},
+  {name:"日本心理臨床学会", value:22000, field:"臨床医学"},
+  {name:"日本救急医学会", value:10000, field:"臨床医学"},
+  {name:"日本血液学会", value:7000, field:"臨床医学"},
+  {name:"日本呼吸器学会", value:11000, field:"臨床医学"},
+  {name:"日本産科婦人科学会", value:16000, field:"臨床医学"},
+  {name:"日本産業衛生学会", value:7000, field:"臨床医学"},
+  {name:"日本耳鼻咽喉科学会", value:11000, field:"臨床医学"},
+  {name:"日本周産期・新生児医学会", value:7000, field:"臨床医学"},
+  {name:"日本集中治療医学会", value:8000, field:"臨床医学"},
+  {name:"日本感染症学会", value:11000, field:"臨床医学"},
+  {name:"日本腎臓学会", value:9000, field:"臨床医学"},
+  {name:"日本整形外科学会", value:23000, field:"臨床医学"},
+  {name:"日本超音波医学会", value:14000, field:"臨床医学"},
+  {name:"日本透析医学会", value:16000, field:"臨床医学"},
+  {name:"日本東洋医学会", value:9000, field:"臨床医学"},
+  {name:"日本肺癌学会", value:10000, field:"臨床医学"},
+  {name:"日本乳癌学会", value:9000, field:"臨床医学"},
+  {name:"日本脳神経外科学会", value:9000, field:"臨床医学"},
+  {name:"日本泌尿器科学会", value:8000, field:"臨床医学"},
+  {name:"日本皮膚科学会", value:11000, field:"臨床医学"},
+  {name:"日本麻酔科学会", value:12000, field:"臨床医学"},
+  {name:"日本リウマチ学会", value:10000, field:"臨床医学"},
+  {name:"日本リハビリテーション医学会", value:10000, field:"臨床医学"},
+  {name:"日本臨床腫瘍学会", value:8000, field:"臨床医学"},
+  {name:"日本医学放射線学会", value:9000, field:"臨床医学"},
+  {name:"日本大腸肛門病学会", value:7000, field:"臨床医学"},
+  {name:"日本胸部外科学会", value:8000, field:"臨床医学"},
+  {name:"日本内分泌学会", value:7000, field:"臨床医学"},
+  {name:"日本化学療法学会", value:7000, field:"臨床医学"},
+  {name:"日本脳卒中学会", value:6000, field:"臨床医学"},
+  {name:"日本栄養治療学会", value:24174, field:"臨床医学"},
+  {name:"日本臨床細胞学会", value:13045, field:"臨床医学"},
+  {name:"日本病態栄養学会", value:8348, field:"臨床医学"},
+  {name:"日本呼吸器内視鏡学会", value:7095, field:"臨床医学"},
+  {name:"日本輸血・細胞治療学会", value:6771, field:"臨床医学"},
+  {name:"日本災害医学会", value:6044, field:"臨床医学"},
+  {name:"日本農村医学会", value:5037, field:"臨床医学"},
+  {name:"日本造血・免疫細胞療法学会", value:5155, field:"臨床医学"},
+  {name:"日本脳神経血管内治療学会", value:5426, field:"臨床医学"},
+  {name:"日本女性医学学会", value:4946, field:"臨床医学"},
+  {name:"日本臨床スポーツ医学会", value:4600, field:"臨床医学"},
+  {name:"日本ペインクリニック学会", value:4656, field:"臨床医学"},
+  {name:"日本人工臓器学会", value:4300, field:"臨床医学"},
+  {name:"日本小児神経学会", value:3855, field:"臨床医学"},
+  {name:"日本臨床神経生理学会", value:3836, field:"臨床医学"},
+  {name:"日本結核・非結核性抗酸菌症学会", value:3781, field:"臨床医学"},
+  {name:"日本磁気共鳴医学会", value:3700, field:"臨床医学"},
+  {name:"日本血管外科学会", value:3913, field:"臨床医学"},
+  {name:"日本手外科学会", value:3541, field:"臨床医学"},
+  {name:"日本肝胆膵外科学会", value:3538, field:"臨床医学"},
+  {name:"日本インターベンショナルラジオロジー学会", value:3557, field:"臨床医学"},
+  {name:"日本呼吸器外科学会", value:3334, field:"臨床医学"},
+  {name:"日本食道学会", value:3017, field:"臨床医学"},
+  {name:"日本小児循環器学会", value:2774, field:"臨床医学"},
+  {name:"日本老年精神医学会", value:2820, field:"臨床医学"},
+  {name:"日本脈管学会", value:2924, field:"臨床医学"},
+  {name:"日本肥満学会", value:2534, field:"臨床医学"},
+  {name:"日本臨床薬理学会", value:2520, field:"臨床医学"},
+  {name:"日本気管食道科学会", value:2500, field:"臨床医学"},
+  {name:"日本小児血液・がん学会", value:2339, field:"臨床医学"},
+  {name:"日本心身医学会", value:2439, field:"臨床医学"},
+  {name:"日本内分泌外科学会", value:1890, field:"臨床医学"},
+  {name:"日本温泉気候物理医学会", value:1839, field:"臨床医学"},
+  {name:"日本生体医工学会", value:1800, field:"臨床医学"},
+  {name:"日本骨代謝学会", value:1850, field:"臨床医学"},
+  {name:"日本職業・災害医学会", value:1512, field:"臨床医学"},
+  {name:"日本臨床免疫学会", value:1491, field:"臨床医学"},
+  {name:"日本熱傷学会", value:1362, field:"臨床医学"},
+  {name:"日本レーザー医学会", value:1260, field:"臨床医学"},
+  {name:"日本血栓止血学会", value:1295, field:"臨床医学"},
+  {name:"日本矯正医学会", value:1124, field:"臨床医学"},
+  {name:"日本リンパ腫学会", value:887, field:"臨床医学"},
+  {name:"日本熱帯医学会", value:720, field:"臨床医学"},
+  {name:"日本保険医学会", value:667, field:"臨床医学"},
+  {name:"日本自律神経学会", value:685, field:"臨床医学"},
+  {name:"日本交通医学会", value:500, field:"臨床医学"},
+  {name:"日本衛生動物学会", value:342, field:"臨床医学"},
+  {name:"日本ハンセン病学会", value:156, field:"臨床医学"},
+  {name:"比較眼科学会", value:80, field:"臨床医学"},
+  {name:"比較統合医療学会", value:80, field:"臨床医学"},
+  {name:"東日本整形災害外科学会", value:80, field:"臨床医学"},
+  {name:"日本老年医学会", value:6420, field:"臨床医学"},
+  {name:"日本認知症学会", value:6396, field:"臨床医学"},
+  {name:"日本高血圧学会", value:4910, field:"臨床医学"},
+  {name:"日本胃癌学会", value:4718, field:"臨床医学"},
+  {name:"日本医療情報学会", value:3750, field:"臨床医学"},
+  {name:"日本核医学会", value:3640, field:"臨床医学"},
+  {name:"日本移植学会", value:3380, field:"臨床医学"},
+  {name:"日本医学教育学会", value:3015, field:"臨床医学"},
+  {name:"日本甲状腺学会", value:2996, field:"臨床医学"},
+  {name:"日本小児外科学会", value:2010, field:"臨床医学"},
+  {name:"日本医療機器学会", value:6500, field:"臨床医学"},
+  {name:"日本生殖医学会", value:5637, field:"臨床医学"},
+  {name:"日本婦人科腫瘍学会", value:4479, field:"臨床医学"},
+  {name:"日本心臓血管外科学会", value:4450, field:"臨床医学"},
+  {name:"日本睡眠学会", value:4158, field:"臨床医学"},
+  {name:"日本脊椎脊髄病学会", value:3967, field:"臨床医学"},
+  {name:"日本てんかん学会", value:3167, field:"臨床医学"},
+  {name:"日本臨床検査医学会", value:2941, field:"臨床医学"},
+  {name:"日本放射線腫瘍学会", value:2316, field:"臨床医学"},
+  {name:"日本動脈硬化学会", value:2183, field:"臨床医学"},
+  {name:"日本アフェレシス学会", value:1671, field:"臨床医学"},
+  {name:"日本公衆衛生学会", value:8000, field:"健康・生活科学"},
+  {name:"日本臨床栄養協会", value:80, field:"健康・生活科学"},
+  {name:"日本疫学会", value:2700, field:"健康・生活科学"},
+  {name:"日本衛生学会", value:1350, field:"健康・生活科学"},
+  {name:"日本医療・病院管理学会", value:1103, field:"健康・生活科学"},
+  {name:"日本国際保健医療学会", value:1055, field:"健康・生活科学"},
+  {name:"日本健康学会", value:398, field:"健康・生活科学"},
+  {name:"新日本医師協会", value:80, field:"健康・生活科学"},
+  {name:"人体科学会", value:80, field:"健康・生活科学"},
+  {name:"生存科学研究所", value:80, field:"健康・生活科学"},
+  {name:"全国公衆衛生関連学協会連絡協議会", value:80, field:"健康・生活科学"},
+  {name:"日本スポーツパフォーマンス学会", value:80, field:"健康・生活科学"},
+  {name:"聖路加看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本がん看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本看護学教育学会", value:80, field:"健康・生活科学"},
+  {name:"日本看護管理学会", value:80, field:"健康・生活科学"},
+  {name:"日本救急看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本クリティカルケア看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本公衆衛生看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本循環器看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本小児看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本助産学会", value:80, field:"健康・生活科学"},
+  {name:"日本精神保健看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本創傷・オストミー・失禁管理学会", value:80, field:"健康・生活科学"},
+  {name:"日本地域看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本糖尿病教育・看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本母性看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本運動器看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本家族看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本看護医療学会", value:80, field:"健康・生活科学"},
+  {name:"日本看護技術学会", value:80, field:"健康・生活科学"},
+  {name:"日本看護教育学学会", value:80, field:"健康・生活科学"},
+  {name:"日本看護診断学会", value:80, field:"健康・生活科学"},
+  {name:"日本看護福祉学会", value:80, field:"健康・生活科学"},
+  {name:"日本看護倫理学会", value:80, field:"健康・生活科学"},
+  {name:"日本看護歴史学会", value:80, field:"健康・生活科学"},
+  {name:"日本災害看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本在宅ケア学会", value:80, field:"健康・生活科学"},
+  {name:"日本手術看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本新生児看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本腎不全看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本生殖看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本赤十字看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本難病看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本放射線看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本母子看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本慢性看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本ルーラルナーシング学会", value:80, field:"健康・生活科学"},
+  {name:"日本老年看護学会", value:80, field:"健康・生活科学"},
+  {name:"北日本看護学会", value:80, field:"健康・生活科学"},
+  {name:"日本家政学会", value:2126, field:"健康・生活科学"},
+  {name:"日本体力医学会", value:3200, field:"健康・生活科学"},
+  {name:"看護理工学会", value:80, field:"健康・生活科学"},
+  {name:"日本診療情報管理学会", value:80, field:"健康・生活科学"},
+  {name:"日本生涯スポーツ学会", value:80, field:"健康・生活科学"},
+  {name:"日本体育・スポーツ経営学会", value:80, field:"健康・生活科学"},
+  {name:"日本体育・スポーツ・健康学会", value:80, field:"健康・生活科学"},
+  {name:"日本体育・スポーツ哲学会", value:80, field:"健康・生活科学"},
+  {name:"日本体育測定評価学会", value:80, field:"健康・生活科学"},
+  {name:"日本体操競技・器械運動学会", value:80, field:"健康・生活科学"},
+  {name:"日本体操学会", value:80, field:"健康・生活科学"},
+  {name:"日本テニス学会", value:80, field:"健康・生活科学"},
+  {name:"日本トレーニング科学会", value:80, field:"健康・生活科学"},
+  {name:"日本人間ドック学会", value:80, field:"健康・生活科学"},
+  {name:"日本発育発達学会", value:80, field:"健康・生活科学"},
+  {name:"日本病院管理学会", value:80, field:"健康・生活科学"},
+  {name:"日本武道学会", value:80, field:"健康・生活科学"},
+  {name:"日本保健医療行動科学会", value:80, field:"健康・生活科学"},
+  {name:"日本保健科学学会", value:80, field:"健康・生活科学"},
+  {name:"日本スキー学会", value:80, field:"健康・生活科学"},
+  {name:"日本スプリント学会", value:80, field:"健康・生活科学"},
+  {name:"日本スポーツ運動学会", value:80, field:"健康・生活科学"},
+  {name:"日本スポーツ教育学会", value:80, field:"健康・生活科学"},
+  {name:"日本スポーツ心理学会", value:80, field:"健康・生活科学"},
+  {name:"日本スポーツ方法学会", value:80, field:"健康・生活科学"},
+  {name:"日本陸上競技学会", value:80, field:"健康・生活科学"},
+  {name:"日本レジャー・レクリエーション学会", value:80, field:"健康・生活科学"},
+  {name:"日本女子体育連盟", value:80, field:"健康・生活科学"},
+  {name:"生活科学系コンソーシアム", value:80, field:"健康・生活科学"},
+  {name:"日本保育園保健協議会", value:80, field:"健康・生活科学"},
+  {name:"日本看護系学会協議会", value:80, field:"健康・生活科学"},
+  {name:"メンタルケア学術学会", value:80, field:"健康・生活科学"},
+  {name:"体力・栄養・免疫学会", value:80, field:"健康・生活科学"},
+  {name:"千葉看護学会", value:80, field:"健康・生活科学"},
+  {name:"千葉県学校保健学会", value:80, field:"健康・生活科学"},
+  {name:"大阪体育学会", value:80, field:"健康・生活科学"},
+  {name:"日本運動生理学会", value:80, field:"健康・生活科学"},
+  {name:"日本音楽療法学会", value:80, field:"健康・生活科学"},
+  {name:"日本宇宙航空環境医学会", value:80, field:"健康・生活科学"},
+  {name:"日本応用老年学会", value:80, field:"健康・生活科学"},
+  {name:"ランニング学会", value:80, field:"健康・生活科学"},
+  {name:"理学療法科学学会", value:80, field:"健康・生活科学"},
+  {name:"日本看護科学学会", value:6500, field:"健康・生活科学"},
+  {name:"日本看護研究学会", value:5000, field:"健康・生活科学"},
+  {name:"日本口腔インプラント学会", value:12300, field:"歯学"},
+  {name:"国際歯科研究学会日本部会", value:80, field:"歯学"},
+  {name:"日本矯正歯科協会", value:80, field:"歯学"},
+  {name:"日本歯学系学会協議会", value:80, field:"歯学"},
+  {name:"日本顎咬合学会", value:8490, field:"歯学"},
+  {name:"日本口腔外科学会", value:9500, field:"歯学"},
+  {name:"日本歯周病学会", value:8700, field:"歯学"},
+  {name:"日本補綴歯科学会", value:6700, field:"歯学"},
+  {name:"日本矯正歯科学会", value:6300, field:"歯学"},
+  {name:"日本歯科保存学会", value:4609, field:"歯学"},
+  {name:"日本障害者歯科学会", value:4799, field:"歯学"},
+  {name:"日本歯科審美学会", value:4349, field:"歯学"},
+  {name:"日本小児歯科学会", value:4400, field:"歯学"},
+  {name:"日本臨床歯周病学会", value:3696, field:"歯学"},
+  {name:"日本老年歯科医学会", value:2910, field:"歯学"},
+  {name:"日本口腔衛生学会", value:2426, field:"歯学"},
+  {name:"日本歯科基礎医学会", value:2413, field:"歯学"},
+  {name:"日本顎関節学会", value:2282, field:"歯学"},
+  {name:"日本歯内療法学会", value:2173, field:"歯学"},
+  {name:"日本顎変形症学会", value:2116, field:"歯学"},
+  {name:"日本歯科医学教育学会", value:1794, field:"歯学"},
+  {name:"日本歯科理工学会", value:1859, field:"歯学"},
+  {name:"日本口腔腫瘍学会", value:1657, field:"歯学"},
+  {name:"日本有病者歯科医療学会", value:1345, field:"歯学"},
+  {name:"日本歯科医療管理学会", value:1244, field:"歯学"},
+  {name:"日本スポーツ歯科医学会", value:1317, field:"歯学"},
+  {name:"日本顎顔面インプラント学会", value:1441, field:"歯学"},
+  {name:"日本歯科放射線学会", value:1442, field:"歯学"},
+  {name:"日本口腔診断学会", value:1161, field:"歯学"},
+  {name:"日本外傷歯学会", value:1017, field:"歯学"},
+  {name:"日本接着歯学会", value:956, field:"歯学"},
+  {name:"日本レーザー歯学会", value:906, field:"歯学"},
+  {name:"日本口腔感染症学会", value:689, field:"歯学"},
+  {name:"日本歯科東洋医学会", value:655, field:"歯学"},
+  {name:"日本歯科心身医学会", value:649, field:"歯学"},
+  {name:"日本顎顔面補綴学会", value:553, field:"歯学"},
+  {name:"日本小児口腔外科学会", value:559, field:"歯学"},
+  {name:"日本顎顔面痛学会", value:576, field:"歯学"},
+  {name:"日本歯科医史学会", value:522, field:"歯学"},
+  {name:"日本臨床口腔病理学会", value:500, field:"歯学"},
+  {name:"日本口腔リハビリテーション学会", value:510, field:"歯学"},
+  {name:"日本顎口腔機能学会", value:474, field:"歯学"},
+  {name:"日本磁気歯科医学会", value:364, field:"歯学"},
+  {name:"日本歯科薬物療法学会", value:712, field:"歯学"},
+  {name:"日本口腔科学会", value:4335, field:"歯学"},
+  {name:"口腔病学会", value:80, field:"歯学"},
+  {name:"大阪歯科学会", value:80, field:"歯学"},
+  {name:"岐阜歯科学会", value:80, field:"歯学"},
+  {name:"九州歯科学会", value:80, field:"歯学"},
+  {name:"日本舌側矯正歯科学会", value:80, field:"歯学"},
+  {name:"日本全身咬合学会", value:80, field:"歯学"},
+  {name:"日本咀嚼学会", value:80, field:"歯学"},
+  {name:"日本大学歯学会", value:80, field:"歯学"},
+  {name:"日本薬学会", value:20000, field:"薬学"},
+  {name:"レギュラトリーサイエンス学会", value:80, field:"薬学"},
+  {name:"日本ジェネリック医薬品学会", value:80, field:"薬学"},
+  {name:"日本社会薬学会", value:80, field:"薬学"},
+  {name:"日本トキシコロジー学会", value:80, field:"薬学"},
+  {name:"日本医療薬学会", value:13896, field:"薬学"},
+  {name:"日本薬剤学会", value:1800, field:"薬学"},
+  {name:"日本TDM学会", value:700, field:"薬学"},
+  {name:"日本薬物動態学会", value:80, field:"薬学"},
+  {name:"日本臨床腫瘍薬学会", value:80, field:"薬学"},
+  {name:"日本毒性学会", value:80, field:"薬学"},
+  {name:"日本生薬学会", value:80, field:"薬学"},
+  {name:"日本臨床化学会", value:80, field:"薬学"},
+  {name:"日本薬学教育学会", value:80, field:"薬学"},
+  {name:"日本老年薬学会", value:80, field:"薬学"},
+  {name:"日本医薬品情報学会", value:80, field:"薬学"},
+  {name:"日本医薬品安全性学会", value:80, field:"薬学"},
+  {name:"日本核酸医薬学会", value:80, field:"薬学"},
+  {name:"日本核酸化学会", value:80, field:"薬学"},
+  {name:"日本緩和医療薬学会", value:80, field:"薬学"},
+  {name:"日本くすりと糖尿病学会", value:80, field:"薬学"},
+  {name:"日本小児臨床薬理学会", value:80, field:"薬学"},
+  {name:"日本腎臓病薬物療法学会", value:80, field:"薬学"},
+  {name:"日本精神薬学会", value:80, field:"薬学"},
+  {name:"日本DDS学会", value:80, field:"薬学"},
+  {name:"日本微量元素学会", value:80, field:"薬学"},
+  {name:"日本ファーマシューティカルコミュニケーション学会", value:80, field:"薬学"},
+  {name:"日本PDA製薬学会", value:80, field:"薬学"},
+  {name:"ライフインテリジェンスコンソーシアム", value:80, field:"薬学"},
+  {name:"和漢医薬学会", value:80, field:"薬学"},
+
+  {name:"大気環境学会", value:842, field:"環境学"},
+  {name:"環境経済・政策学会", value:1018, field:"環境学"},
+  {name:"日本環境学会", value:80, field:"環境学"},
+  {name:"環境科学会", value:80, field:"環境学"},
+  {name:"環境社会学会", value:80, field:"環境学"},
+  {name:"社会環境学会", value:80, field:"環境学"},
+  {name:"日本環境教育学会", value:80, field:"環境学"},
+  {name:"日本環境毒性学会", value:80, field:"環境学"},
+  {name:"環境芸術学会", value:80, field:"環境学"},
+  {name:"日本水環境学会", value:80, field:"環境学"},
+  {name:"日本水処理生物学会", value:80, field:"環境学"},
+  {name:"日本風力エネルギー協会", value:80, field:"環境学"},
+  {name:"日本環境化学会", value:80, field:"環境学"},
+  {name:"環境情報科学センター", value:80, field:"環境学"},
+  {name:"防災学術連携体", value:80, field:"環境学"},
+  {name:"環境経営学会", value:80, field:"環境学"},
+  {name:"環境福祉学会", value:80, field:"環境学"},
+  {name:"水資源・環境学会", value:80, field:"環境学"},
+  {name:"生態工学会", value:80, field:"環境学"},
+  {name:"環境システム計測制御学会", value:80, field:"環境学"},
+  {name:"日本生物環境工学会", value:80, field:"環境学"},
+  {name:"こども環境学会", value:80, field:"環境学"},
+  {name:"国際環境研究協会", value:80, field:"環境学"},
+  {name:"廃棄物資源循環学会", value:80, field:"環境学"},
+  {name:"日本数学会", value:5000, field:"数理科学"},
+  {name:"日本応用数理学会", value:1800, field:"数理科学"},
+  {name:"日本統計学会", value:1451, field:"数理科学"},
+  {name:"数理科学会", value:80, field:"数理科学"},
+  {name:"日本数学教育学会", value:80, field:"数理科学"},
+  {name:"統計科学研究会", value:80, field:"数理科学"},
+  {name:"応用統計学会", value:80, field:"数理科学"},
+  {name:"日本計算機統計学会", value:80, field:"数理科学"},
+  {name:"日本数学史学会", value:80, field:"数理科学"},
+  {name:"国際数理科学協会", value:80, field:"数理科学"},
+  {name:"統計研究会", value:80, field:"数理科学"},
+  {name:"日本物理学会", value:18000, field:"物理学"},
+  {name:"応用物理学会", value:24000, field:"物理学"},
+  {name:"原子衝突学会", value:80, field:"物理学"},
+  {name:"光化学協会", value:80, field:"物理学"},
+  {name:"日本液晶学会", value:80, field:"物理学"},
+  {name:"日本光学会", value:80, field:"物理学"},
+  {name:"日本熱測定学会", value:80, field:"物理学"},
+  {name:"日本熱物性学会", value:80, field:"物理学"},
+  {name:"日本表面科学会", value:80, field:"物理学"},
+  {name:"日本分光学会", value:80, field:"物理学"},
+  {name:"日本放射線化学会", value:80, field:"物理学"},
+  {name:"日本真空協会", value:80, field:"物理学"},
+  {name:"低温工学協会", value:80, field:"物理学"},
+  {name:"分子シミュレーション研究会", value:80, field:"物理学"},
+  {name:"日本放射光学会", value:80, field:"物理学"},
+  {name:"日本中性子科学会", value:80, field:"物理学"},
+  {name:"日本地質学会", value:4300, field:"地球惑星科学"},
+  {name:"日本気象学会", value:4300, field:"地球惑星科学"},
+  {name:"日本地震学会", value:4000, field:"地球惑星科学"},
+  {name:"日本天文学会", value:3000, field:"地球惑星科学"},
+  {name:"日本海洋学会", value:2000, field:"地球惑星科学"},
+  {name:"日本地理学会", value:3000, field:"地球惑星科学"},
+  {name:"日本応用地質学会", value:80, field:"地球惑星科学"},
+  {name:"日本温泉科学会", value:80, field:"地球惑星科学"},
+  {name:"日本火山学会", value:80, field:"地球惑星科学"},
+  {name:"形の科学会", value:80, field:"地球惑星科学"},
+  {name:"日本活断層学会", value:80, field:"地球惑星科学"},
+  {name:"日本鉱物科学会", value:80, field:"地球惑星科学"},
+  {name:"日本地図学会", value:80, field:"地球惑星科学"},
+  {name:"日本古生物学会", value:80, field:"地球惑星科学"},
+  {name:"日本沙漠学会", value:80, field:"地球惑星科学"},
+  {name:"資源地質学会", value:80, field:"地球惑星科学"},
+  {name:"日本情報地質学会", value:80, field:"地球惑星科学"},
+  {name:"日本水文科学会", value:80, field:"地球惑星科学"},
+  {name:"水文・水資源学会", value:80, field:"地球惑星科学"},
+  {name:"石油技術協会", value:80, field:"地球惑星科学"},
+  {name:"日本雪氷学会", value:80, field:"地球惑星科学"},
+  {name:"日本測地学会", value:80, field:"地球惑星科学"},
+  {name:"日本大気化学会", value:80, field:"地球惑星科学"},
+  {name:"日本堆積学会", value:80, field:"地球惑星科学"},
+  {name:"日本第四紀学会", value:80, field:"地球惑星科学"},
+  {name:"日本地学教育学会", value:80, field:"地球惑星科学"},
+  {name:"地学団体研究会", value:80, field:"地球惑星科学"},
+  {name:"日本地下水学会", value:80, field:"地球惑星科学"},
+  {name:"日本地球化学会", value:80, field:"地球惑星科学"},
+  {name:"地球電磁気・地球惑星圏学会", value:80, field:"地球惑星科学"},
+  {name:"日本地形学連合", value:80, field:"地球惑星科学"},
+  {name:"日本地熱学会", value:80, field:"地球惑星科学"},
+  {name:"地理科学学会", value:80, field:"地球惑星科学"},
+  {name:"日本地理教育学会", value:80, field:"地球惑星科学"},
+  {name:"日本大気電気学会", value:80, field:"地球惑星科学"},
+  {name:"地球環境史学会", value:80, field:"地球惑星科学"},
+  {name:"日本地震工学会", value:80, field:"地球惑星科学"},
+  {name:"砂防学会", value:80, field:"地球惑星科学"},
+  {name:"日本サンゴ礁学会", value:80, field:"地球惑星科学"},
+  {name:"社会地質学会", value:80, field:"地球惑星科学"},
+  {name:"東京地学協会", value:80, field:"地球惑星科学"},
+  {name:"兵庫地理学協会", value:80, field:"地球惑星科学"},
+  {name:"日本リモートセンシング学会", value:80, field:"地球惑星科学"},
+  {name:"海洋音響学会", value:80, field:"地球惑星科学"},
+  {name:"日本沿岸域学会", value:80, field:"地球惑星科学"},
+  {name:"陸水物理学会", value:80, field:"地球惑星科学"},
+  {name:"物理探査学会", value:80, field:"地球惑星科学"},
+  {name:"海洋気象学会", value:80, field:"地球惑星科学"},
+  {name:"東北地理学会", value:80, field:"地球惑星科学"},
+  {name:"日本自然災害学会", value:80, field:"地球惑星科学"},
+  {name:"日本植生史学会", value:80, field:"地球惑星科学"},
+  {name:"日本洞窟学会", value:80, field:"地球惑星科学"},
+  {name:"日本生気象学会", value:80, field:"地球惑星科学"},
+  {name:"日本粘土学会", value:80, field:"地球惑星科学"},
+  {name:"情報処理学会", value:20000, field:"情報学"},
+  {name:"人工知能学会", value:5000, field:"情報学"},
+  {name:"日本データベース学会", value:80, field:"情報学"},
+  {name:"システム監査学会", value:80, field:"情報学"},
+  {name:"情報知識学会", value:80, field:"情報学"},
+  {name:"情報文化学会", value:80, field:"情報学"},
+  {name:"情報法制学会", value:80, field:"情報学"},
+  {name:"日本情報経営学会", value:80, field:"情報学"},
+  {name:"情報通信学会", value:80, field:"情報学"},
+  {name:"日本メディカルAI学会", value:80, field:"情報学"},
+  {name:"日本神経回路学会", value:80, field:"情報学"},
+  {name:"日本図書館情報学会", value:80, field:"情報学"},
+  {name:"日本認知科学会", value:80, field:"情報学"},
+  {name:"日本バーチャルリアリティ学会", value:80, field:"情報学"},
+  {name:"日本数式処理学会", value:80, field:"情報学"},
+  {name:"日本情報ディレクトリ学会", value:80, field:"情報学"},
+  {name:"情報科学技術協会", value:80, field:"情報学"},
+  {name:"日本図書館研究会", value:80, field:"情報学"},
+  {name:"日本図書館文化史研究会", value:80, field:"情報学"},
+  {name:"パーソナルコンピュータユーザ利用技術協会", value:80, field:"情報学"},
+  {name:"日本知能情報ファジィ学会", value:80, field:"情報学"},
+  {name:"日本化学会", value:32000, field:"化学"},
+  {name:"電気化学会", value:3700, field:"化学"},
+  {name:"触媒学会", value:80, field:"化学"},
+  {name:"色材協会", value:80, field:"化学"},
+  {name:"日本エネルギー学会", value:80, field:"化学"},
+  {name:"石油学会", value:80, field:"化学"},
+  {name:"有機合成化学協会", value:80, field:"化学"},
+  {name:"日本油化学会", value:80, field:"化学"},
+  {name:"理論化学会", value:80, field:"化学"},
+  {name:"錯体化学会", value:80, field:"化学"},
+  {name:"クロマトグラフィー科学会", value:80, field:"化学"},
+  {name:"植物化学調節学会", value:80, field:"化学"},
+  {name:"リグニン学会", value:80, field:"化学"},
+  {name:"日本膜学会", value:80, field:"化学"},
+  {name:"日本ゼオライト学会", value:80, field:"化学"},
+  {name:"分子科学会", value:80, field:"化学"},
+  {name:"日本イオン交換学会", value:80, field:"化学"},
+  {name:"日本有機地球化学会", value:80, field:"化学"},
+  {name:"日本接着学会", value:80, field:"化学"},
+  {name:"日本フッ素化学会", value:80, field:"化学"},
+  {name:"日本プロセス化学会", value:80, field:"化学"},
+  {name:"日本放射化学会", value:80, field:"化学"},
+  {name:"近畿化学協会", value:80, field:"化学"},
+  {name:"日本無機リン化学会", value:80, field:"化学"},
+  {name:"分離技術会", value:80, field:"化学"},
+  {name:"日本質量分析学会", value:80, field:"化学"},
+  {name:"高分子学会", value:11000, field:"化学"},
+  {name:"日本分析化学会", value:9000, field:"化学"},
+  {name:"日本原子力学会", value:7100, field:"総合工学"},
+  {name:"日本航空宇宙学会", value:4000, field:"総合工学"},
+  {name:"日本ロボット学会", value:5000, field:"総合工学"},
+  {name:"可視化情報学会", value:80, field:"総合工学"},
+  {name:"システム制御情報学会", value:80, field:"総合工学"},
+  {name:"日本計算工学会", value:80, field:"総合工学"},
+  {name:"日本産業技術教育学会", value:80, field:"総合工学"},
+  {name:"日本シミュレーション学会", value:80, field:"総合工学"},
+  {name:"日本ソフトウェア科学会", value:80, field:"総合工学"},
+  {name:"日本デザイン学会", value:80, field:"総合工学"},
+  {name:"日本燃焼学会", value:80, field:"総合工学"},
+  {name:"日本非破壊検査協会", value:80, field:"総合工学"},
+  {name:"日本流体力学会", value:80, field:"総合工学"},
+  {name:"日本レオロジー学会", value:80, field:"総合工学"},
+  {name:"日本経営工学会", value:80, field:"総合工学"},
+  {name:"日本顕微鏡学会", value:80, field:"総合工学"},
+  {name:"日本工学教育協会", value:80, field:"総合工学"},
+  {name:"環境資源工学会", value:80, field:"総合工学"},
+  {name:"日本複合材料学会", value:80, field:"総合工学"},
+  {name:"日本溶接協会", value:80, field:"総合工学"},
+  {name:"粉体粉末冶金協会", value:80, field:"総合工学"},
+  {name:"ターボ機械協会", value:80, field:"総合工学"},
+  {name:"日本高圧力技術協会", value:80, field:"総合工学"},
+  {name:"日本設備管理学会", value:80, field:"総合工学"},
+  {name:"日本塑性加工学会", value:80, field:"総合工学"},
+  {name:"日本トライボロジー学会", value:80, field:"総合工学"},
+  {name:"日本フルードパワーシステム学会", value:80, field:"総合工学"},
+  {name:"プラスチック成形加工学会", value:80, field:"総合工学"},
+  {name:"自動車技術会", value:80, field:"総合工学"},
+  {name:"精密工学会", value:80, field:"総合工学"},
+  {name:"砥粒加工学会", value:80, field:"総合工学"},
+  {name:"日本ガスタービン学会", value:80, field:"総合工学"},
+  {name:"日本マリンエンジニアリング学会", value:80, field:"総合工学"},
+  {name:"日本火災学会", value:80, field:"総合工学"},
+  {name:"レーザー学会", value:80, field:"総合工学"},
+  {name:"レーザ加工学会", value:80, field:"総合工学"},
+  {name:"芸術工学会", value:80, field:"総合工学"},
+  {name:"芸術科学会", value:80, field:"総合工学"},
+  {name:"藝術学関連学会連合", value:80, field:"総合工学"},
+  {name:"芸術学研究会", value:80, field:"総合工学"},
+  {name:"日本船舶海洋工学会", value:80, field:"総合工学"},
+  {name:"日本技術士会", value:80, field:"総合工学"},
+  {name:"安全工学会", value:80, field:"総合工学"},
+  {name:"日本シミュレーション&ゲーミング学会", value:80, field:"総合工学"},
+  {name:"日本写真学会", value:80, field:"総合工学"},
+  {name:"日本信頼性学会", value:80, field:"総合工学"},
+  {name:"日本生活支援工学会", value:80, field:"総合工学"},
+  {name:"日本設計工学会", value:80, field:"総合工学"},
+  {name:"日本人間工学会", value:80, field:"総合工学"},
+  {name:"日本バイオメカニクス学会", value:80, field:"総合工学"},
+  {name:"形の文化会", value:80, field:"総合工学"},
+  {name:"交通工学研究会", value:80, field:"総合工学"},
+  {name:"国際ジオシンセティックス学会日本支部", value:80, field:"総合工学"},
+  {name:"日本建設機械化協会", value:80, field:"総合工学"},
+  {name:"日本交通科学協議会", value:80, field:"総合工学"},
+  {name:"日本水道協会", value:80, field:"総合工学"},
+  {name:"日本鉄道技術協会", value:80, field:"総合工学"},
+  {name:"日本リハビリテーション工学協会", value:80, field:"総合工学"},
+  {name:"日本ばね学会", value:80, field:"総合工学"},
+  {name:"海洋理工学会", value:80, field:"総合工学"},
+  {name:"品質工学会", value:80, field:"総合工学"},
+  {name:"ダム工学会", value:80, field:"総合工学"},
+  {name:"日本デジタルゲーム学会", value:80, field:"総合工学"},
+  {name:"日本電磁波エネルギー応用学会", value:80, field:"総合工学"},
+  {name:"日本マクロエンジニアリング学会", value:80, field:"総合工学"},
+  {name:"横断型基幹科学技術研究団体連合", value:80, field:"総合工学"},
+  {name:"化学とマイクロ・ナノシステム学会", value:80, field:"総合工学"},
+  {name:"進化計算学会", value:80, field:"総合工学"},
+  {name:"実践教育訓練学会", value:80, field:"総合工学"},
+  {name:"測位航法学会", value:80, field:"総合工学"},
+  {name:"産業応用工学会", value:80, field:"総合工学"},
+  {name:"産業保健人間工学会", value:80, field:"総合工学"},
+  {name:"サービス学会", value:80, field:"総合工学"},
+  {name:"スマートプロセス学会", value:80, field:"総合工学"},
+  {name:"コ・メディカル形態機能学会", value:80, field:"総合工学"},
+  {name:"バイオメカニズム学会", value:80, field:"総合工学"},
+  {name:"バイオメディカル・ファジィ・システム学会", value:80, field:"総合工学"},
+  {name:"日本時計学会", value:80, field:"総合工学"},
+  {name:"パワーエレクトロニクス学会", value:80, field:"総合工学"},
+  {name:"日本機械学会", value:37500, field:"機械工学"},
+  {name:"計測自動制御学会", value:6000, field:"機械工学"},
+  {name:"日本冷凍空調学会", value:4000, field:"機械工学"},
+  {name:"照明学会", value:6000, field:"機械工学"},
+  {name:"日本繊維機械学会", value:80, field:"機械工学"},
+  {name:"電気学会", value:24000, field:"電気電子工学"},
+  {name:"電子情報通信学会", value:35000, field:"電気電子工学"},
+  {name:"映像情報メディア学会", value:80, field:"電気電子工学"},
+  {name:"エレクトロニクス実装学会", value:80, field:"電気電子工学"},
+  {name:"画像電子学会", value:80, field:"電気電子工学"},
+  {name:"電気設備学会", value:80, field:"電気電子工学"},
+  {name:"日本画像学会", value:80, field:"電気電子工学"},
+  {name:"日本磁気学会", value:80, field:"電気電子工学"},
+  {name:"低温工学・超電導学会", value:80, field:"電気電子工学"},
+  {name:"日本騒音制御工学会", value:80, field:"電気電子工学"},
+  {name:"静電気学会", value:80, field:"電気電子工学"},
+  {name:"日本風力エネルギー学会", value:80, field:"電気電子工学"},
+  {name:"エネルギー・資源学会", value:80, field:"電気電子工学"},
+  {name:"日本マイクログラビティ応用学会", value:80, field:"電気電子工学"},
+  {name:"信号処理学会", value:80, field:"電気電子工学"},
+  {name:"DV-Xα研究協会", value:80, field:"電気電子工学"},
+  {name:"日本加速器学会", value:80, field:"電気電子工学"},
+  {name:"日本伝熱学会", value:80, field:"電気電子工学"},
+  {name:"日本表面真空学会", value:80, field:"電気電子工学"},
+  {name:"土木学会", value:40000, field:"土木工学・建築学"},
+  {name:"日本建築学会", value:35000, field:"土木工学・建築学"},
+  {name:"農村建築研究会", value:80, field:"土木工学・建築学"},
+  {name:"日本民俗建築学会", value:80, field:"土木工学・建築学"},
+  {name:"日本建設機械施工協会", value:80, field:"土木工学・建築学"},
+  {name:"日本都市学会", value:80, field:"土木工学・建築学"},
+  {name:"土壌物理学会", value:80, field:"土木工学・建築学"},
+  {name:"プレストレストコンクリート工学会", value:80, field:"土木工学・建築学"},
+  {name:"電力土木技術協会", value:80, field:"土木工学・建築学"},
+  {name:"日本大ダム会議", value:80, field:"土木工学・建築学"},
+  {name:"日本材料科学会", value:80, field:"土木工学・建築学"},
+  {name:"北海道都市地域学会", value:80, field:"土木工学・建築学"},
+  {name:"日本地すべり学会", value:80, field:"土木工学・建築学"},
+  {name:"日本下水道協会", value:80, field:"土木工学・建築学"},
+  {name:"日本航海学会", value:80, field:"土木工学・建築学"},
+  {name:"日本科学者会議", value:80, field:"土木工学・建築学"},
+  {name:"日本国際地域開発学会", value:80, field:"土木工学・建築学"},
+  {name:"日本写真測量学会", value:80, field:"土木工学・建築学"},
+  {name:"日本緑化工学会", value:80, field:"土木工学・建築学"},
+  {name:"日本図学会", value:80, field:"土木工学・建築学"},
+  {name:"環境技術学会", value:80, field:"土木工学・建築学"},
+  {name:"日本生活学会", value:80, field:"土木工学・建築学"},
+  {name:"日本太陽エネルギー学会", value:80, field:"土木工学・建築学"},
+  {name:"日本マンション学会", value:80, field:"土木工学・建築学"},
+  {name:"日本測量協会", value:80, field:"土木工学・建築学"},
+  {name:"日本コンクリート工学会", value:8000, field:"土木工学・建築学"},
+  {name:"地盤工学会", value:9000, field:"土木工学・建築学"},
+  {name:"日本都市計画学会", value:5000, field:"土木工学・建築学"},
+  {name:"空気調和・衛生工学会", value:16000, field:"土木工学・建築学"},
+  {name:"日本セラミックス協会", value:4504, field:"材料工学"},
+  {name:"紙パルプ技術協会", value:80, field:"材料工学"},
+  {name:"軽金属溶接構造協会", value:80, field:"材料工学"},
+  {name:"先端材料技術協会", value:80, field:"材料工学"},
+  {name:"銅及び銅合金技術研究会", value:80, field:"材料工学"},
+  {name:"日本鋼構造協会", value:80, field:"材料工学"},
+  {name:"日本材料試験技術協会", value:80, field:"材料工学"},
+  {name:"日本熱処理技術協会", value:80, field:"材料工学"},
+  {name:"日本溶射協会", value:80, field:"材料工学"},
+  {name:"腐食防食協会", value:80, field:"材料工学"},
+  {name:"日本鉄鋼協会", value:10000, field:"材料工学"},
+  {name:"軽金属学会", value:80, field:"材料工学"},
+  {name:"資源・素材学会", value:80, field:"材料工学"},
+  {name:"耐火物技術協会", value:80, field:"材料工学"},
+  {name:"セメント協会", value:80, field:"材料工学"},
+  {name:"無機マテリアル学会", value:80, field:"材料工学"},
+  {name:"表面技術協会", value:80, field:"材料工学"},
+  {name:"日本海水学会", value:80, field:"材料工学"},
+  {name:"日本結晶学会", value:80, field:"材料工学"},
+  {name:"粉体工学会", value:80, field:"材料工学"},
+  {name:"日本防錆技術協会", value:80, field:"材料工学"},
+  {name:"放電学会", value:80, field:"材料工学"},
+  {name:"日本鋳造工学会", value:80, field:"材料工学"},
+  {name:"日本ゴム協会", value:80, field:"材料工学"},
+  {name:"溶接学会", value:80, field:"材料工学"},
+  {name:"日本生物工学会", value:80, field:"材料工学"},
+  {name:"日本金属学会", value:80, field:"材料工学"},
+  {name:"たたら研究会", value:80, field:"材料工学"},
+  {name:"日本応用磁気学会", value:80, field:"材料工学"},
+  {name:"材料技術研究協会", value:80, field:"材料工学"},
+  {name:"日本材料学会", value:80, field:"材料工学"},
+  {name:"マテリアルライフ学会", value:80, field:"材料工学"},
+  {name:"炭素材料学会", value:80, field:"材料工学"},
+];
+
+LEAVES.forEach(l => l.bu = fieldBu[l.field]);
+
+// ===== Official website URLs (researched where confirmed; many entries — especially name-only / unconfirmed-membership societies — are not yet researched) =====
+const OFFICIAL_URLS = {
+  "日本顎顔面補綴学会": "https://jamfp.jp/",
+  "日本接着歯学会": "https://www.adhesive-dent.com/",
+  "日本口腔感染症学会": "https://www.jaoid.org/",
+  "日本臨床口腔病理学会": "https://www.jsop.or.jp/",
+  "日本歯科東洋医学会": "https://jdtoyo.net/",
+  "日本歯科心身医学会": "https://www.sikasinsin.or.jp/",
+  "日本小児口腔外科学会": "http://www.jspoms.jp/",
+  "日本口腔リハビリテーション学会": "https://www.jaor.jp/",
+  "日本顎口腔機能学会": "http://jssf.umin.ne.jp/",
+  "日本顎顔面痛学会": "https://jorofacialpain.sakura.ne.jp/",
+  "日本経済会計学会": "https://www.aea-j.org/",
+  "経営行動科学学会": "https://jaas-org.jp/",
+  "日本医真菌学会": "http://www.jsmm.org/",
+  "日本神経病理学会": "http://www.jsnp.jp/",
+  "日本医史学会": "http://jsmh.umin.jp/",
+  "日本先天異常学会": "http://plaza.umin.ac.jp/~jts/",
+  "日本寄生虫学会": "https://jsparasitol.org/",
+  "日本平滑筋学会": "http://www.jssmr.jp/",
+  "日本リンパ腫学会": "http://www.jsltr.org/index.html",
+  "日本熱帯医学会": "https://tjstm.jp/",
+  "日本自律神経学会": "http://www.jsnr-net.jp/",
+  "日本保険医学会": "http://aimj.org/",
+  "日本交通医学会": "http://jatm.umin.jp/",
+  "日本衛生動物学会": "http://www.jsmez.gr.jp/",
+  "日本ハンセン病学会": "http://www.hansen-gakkai.jp/",
+  "日本保険学会": "https://www.js-is.org/",
+  "日本財政学会": "https://jipfweb.org/",
+  "日本経済政策学会": "https://jepa.jpn.org/",
+  "経済理論学会": "https://www.jspe.gr.jp/",
+  "経済地理学会": "https://www.economicgeography.jp/",
+  "生活経済学会": "https://jsheweb.smartcore.jp/",
+  "政治経済学・経済史学会": "https://seikeishi.com/",
+  "経済学史学会": "https://jshet.net/",
+  "日本人口学会": "http://www.paoj.org/",
+  "進化経済学会": "https://jafee.org/",
+  "日本交通学会": "http://koutsu-gakkai.jp/",
+  "文化経済学会〈日本〉": "http://www.jace.gr.jp/",
+  "公益事業学会": "https://www.jspu-koeki.jp/",
+  "日本貿易学会": "http://jaftab.org/",
+  "日本地方自治研究学会": "http://www.skattsei.co.jp/tihoujichi/",
+  "日本地域経済学会": "http://jares.jp/",
+  "日本海運経済学会": "http://www.jslse.jp/",
+  "経済社会学会": "http://www.waseda.jp/assoc-soes/",
+  "アジア市場経済学会": "http://www.jafame.jp/",
+  "日本消費経済学会": "http://jace.jpn.org/",
+  "日本比較経営学会": "http://www.jacsm.net/",
+  "日本港湾経済学会": "http://port-economics.jp/",
+  "比較経済体制学会": "https://www.jacesweb.com/",
+  "国際公共経済学会": "https://ciriec.jp/",
+  "アジア経営学会": "https://www.asiakeieigakkai.org/",
+  "異文化経営学会": "http://www.ibunkakeiei.com/",
+  "会計理論学会": "http://www.jsssa-net.org/",
+  "経営学史学会": "http://keieigakusi.info/",
+  "経営行動研究学会": "http://www.jam1991.org/",
+  "経営史学会": "https://bhsj.smoosy.atlas.jp/ja/",
+  "経営哲学学会": "http://www.jamp.ne.jp/",
+  "国際会計研究学会": "http://jaias.org/",
+  "国際ビジネスコミュニケーション学会": "http://www.jbca.gr.jp/",
+  "産業学会": "http://www.sisj.org/",
+  "多国籍企業学会": "http://www.mne-jp.org/",
+  "中国経済経営学会": "http://jacem.org/top.html",
+  "日本会計史学会": "https://www.ahaj.org/",
+  "日本管理会計学会": "https://sitejama.jp/",
+  "日本経営システム学会": "http://www.jams-web.jp/",
+  "日本経営数学会": "https://sites.google.com/site/jpbizmath/",
+  "日本経営倫理学会": "https://www.jabes1993.org/",
+  "日本マネジメント学会": "https://nippon-mana.jp/",
+  "日本リスクマネジメント学会": "http://www.jarms.jp/index.php",
+  "日本労務学会": "https://www.ibi-japan.co.jp/jshrm/",
+  "労務理論学会": "https://jalmsince1991.wixsite.com/home",
+  "社会情報学会": "http://www.ssi.or.jp/",
+  "社会調査協会": "https://jasr.or.jp/",
+  "地域社会学会": "https://jarcs.net/",
+  "日本社会学史学会": "http://jashs.jp/",
+  "日本生涯教育学会": "https://www.j-lifelong.org/",
+  "日本スポーツ社会学会": "https://jsss.jp/",
+  "日本村落研究学会": "https://jars.smoosy.atlas.jp/ja",
+  "日本保健医療社会学会": "http://square.umin.ac.jp/medsocio/",
+  "日本労働社会学会": "https://www.jals.jp/",
+  "日本老年社会科学会": "https://www.rounenshakai.org/",
+  "福祉社会学会": "https://www.jws-assoc.jp/",
+  "日本地域福祉学会": "https://jracd.jp/",
+  "日本出版学会": "https://www.shuppan.jp/",
+  "日本評価学会": "https://evaluationjp.org/",
+  "日本都市社会学会": "https://urbansocio.sakura.ne.jp/",
+  "日本女性学会": "https://joseigakkai-jp.org/",
+  "日本ジェンダー学会": "https://jp-gender.jp/wp/",
+  "日本動物心理学会": "https://plaza.umin.ac.jp/dousin/",
+  "日本バイオフィードバック学会": "http://www.jsbr.jp/",
+  "日本基礎心理学会": "https://psychonomic.jp/",
+  "日本人間性心理学会": "https://www.jahp.org/",
+  "日本箱庭療法学会": "http://www.sandplay.jp/",
+  "美術科教育学会": "https://www.artedu.jp/",
+  "教育史学会": "https://kyouikushigakkai.jp/",
+  "異文化間教育学会": "https://www.intercultural.jp/",
+  "大学英語教育学会": "https://www.jacet.org/",
+  "日本特別活動学会": "https://jaseatokkatsu.jimdoweb.com/",
+  "日本生理心理学会": "https://www.jspp.jp/",
+  "日本特別ニーズ教育学会": "https://www.sne-japan.net/",
+  "日本産業カウンセリング学会": "https://www.jaic.jp/",
+  "日本グループ・ダイナミックス学会": "https://groupdynamics.gr.jp/",
+  "日本行動療法学会": "https://www.jabct.org/",
+  "日本社会科教育学会": "http://socialstudies.jp/",
+  "日本社会教育学会": "https://www.jssace.jp/",
+  "日本乳幼児教育学会": "https://www.jseyc.org/",
+  "日本ペスタロッチー・フレーベル学会": "https://pestalozzi-froebel.amebaownd.com/",
+  "日本保育学会": "https://jsrecce.jp/",
+  "日本生活科・総合的学習教育学会": "https://seikatsu-sougou.org/",
+  "日本体育科教育学会": "https://jsppe.gr.jp/",
+  "日本モンテッソーリ協会": "https://japan-montessori.org/",
+  "日本理科教育学会": "https://www.sjst.jp/",
+  "日本ブリーフサイコセラピー学会": "https://www.jabp.jp/",
+  "美学会": "https://www.bigakukai.jp/",
+  "日本中国学会": "http://nippon-chugoku-gakkai.org/",
+  "日本印度学仏教学会": "https://www.jaibs.jp/",
+  "日本科学哲学会": "https://pssj.info/",
+  "科学基礎論学会": "https://phsc.jp/",
+  "中世哲学会": "http://jsmp.jpn.org/",
+  "日仏哲学会": "http://sfjp-web.net/",
+  "日本ヘーゲル学会": "http://hegel.jp/",
+  "唯物論研究協会": "http://www.zenkokuyuiken.jp/",
+  "日本生命倫理学会": "https://ja-bioethics.jp/",
+  "日本イギリス哲学会": "https://jsbph.org/",
+  "西田哲学会": "https://nishida-philosophy.org/",
+  "宗教哲学会": "http://sprj.org/",
+  "宗教倫理学会": "http://jare.jp/",
+  "日本思想史学会": "https://ajih.jp/",
+  "比較思想学会": "http://www.jacp.org/",
+  "神道宗教學會": "https://www.shintostudies.org/",
+  "教育哲学会": "https://pesj.matrix.jp/",
+  "言語処理学会": "https://www.anlp.jp/",
+  "言語文化教育研究学会": "https://alce.jp/",
+  "計量国語学会": "http://www.math-ling.org/",
+  "和歌文学会": "https://wakabun.jp/",
+  "日本語教育学会": "https://www.nkg.or.jp/",
+  "サウンディングズ英語英米文学会": "http://soundings.lekumo.biz/blog/",
+  "全国語学教育学会": "https://jalt.org/",
+  "日本フランス語学会": "https://www.sjlf.org/",
+  "日本ロマンス語学会": "http://sjsrom.ec-net.jp/",
+  "日本ヴァージニア・ウルフ協会": "http://www.vwoolfsociety.jp/",
+  "日本ウィリアム・フォークナー協会": "https://www.faulknerjapan.com/",
+  "日本民俗音楽学会": "http://s-jfm.org/",
+  "日本シェイクスピア協会": "https://www.s-sj.org/",
+  "日本ナサニエル・ホーソーン協会": "http://nhs-j.org/nhs/",
+  "日本マーケティング学会": "https://www.j-mac.or.jp/",
+  "日本原価計算研究学会": "https://jcaa-hpnet.sakura.ne.jp/jcaa/",
+  "日本ベンチャー学会": "http://www.venture-ac.ne.jp/",
+  "日本ナレッジ・マネジメント学会": "https://kmsj.org/",
+  "日本経営工学会": "https://www.jimanet.jp/",
+  "経営情報学会": "https://www.jasmin.jp/",
+  "日本中小企業学会": "http://www.jasbs.jp/",
+  "日本地域学会": "http://jsrsai.jp/",
+  "国際ビジネス研究学会": "https://www.ibi-japan.co.jp/jaibs/html/",
+  "日本物流学会": "https://www.logistics-society.jp/",
+  "日本生産管理学会": "http://e-jspm.com/",
+  "日本品質管理学会": "https://jsqc.org/",
+  "プロジェクトマネジメント学会": "https://spm-hq.jp/",
+  "研究・イノベーション学会": "https://jsrpim.jp/",
+  "日本テレワーク学会": "https://telework-gakkai.jp/",
+  "日本K-ABCアセスメント学会": "https://www.k-abc.jp/",
+  "日本交通心理学会": "https://www.jatp-web.jp/",
+  "日本家族心理学会": "https://www.jafp-web.org/",
+  "日本自律訓練学会": "https://www.jsoat.jp/",
+  "日本コミュニティ心理学会": "http://jscp1998.jp/",
+  "日本感情心理学会": "http://jsre.jp/",
+  "日本ストレスマネジメント学会": "https://plaza.umin.ac.jp/jssm-since2002/",
+  "日本社会心理学会": "https://www.socialpsychology.jp/",
+  "日本教育心理学会": "https://www.edupsych.jp/",
+  "日本発達心理学会": "https://jsdp.jp/",
+  "日本認知心理学会": "https://cogpsy.jp/",
+  "日本カウンセリング学会": "https://www.jacs1967.jp/",
+  "日本パーソナリティ心理学会": "https://jspp.gr.jp/",
+  "日本特殊教育学会": "https://www.jase.jp/",
+  "日本比較教育学会": "http://www.gakkai.ne.jp/jces/",
+  "大学教育学会": "https://jacue.org/",
+  "全国英語教育学会": "https://www.jasele.jp/",
+  "日本内科学会": "https://www.naika.or.jp/",
+  "土木学会": "https://www.jsce.or.jp/",
+  "日本外科学会": "https://www.jssoc.or.jp/",
+  "日本機械学会": "https://www.jsme.or.jp/",
+  "電子情報通信学会": "https://www.ieice.org/",
+  "日本建築学会": "https://www.aij.or.jp/",
+  "情報処理学会": "https://www.ipsj.or.jp/",
+  "日本消化器内視鏡学会": "https://www.jges.net/",
+  "日本消化器病学会": "https://www.jsge.or.jp/",
+  "日本化学会": "https://www.chemistry.or.jp/",
+  "日本循環器学会": "https://www.j-circ.or.jp/",
+  "日本栄養治療学会": "https://www.jspen.or.jp/",
+  "応用物理学会": "https://www.jsap.or.jp/",
+  "電気学会": "https://www.iee.jp/",
+  "エネルギー・資源学会": "https://www.jser.gr.jp/",
+  "日本金属学会": "https://jimm.jp/",
+  "日本整形外科学会": "https://www.joa.or.jp/",
+  "日本小児科学会": "https://www.jpeds.or.jp/",
+  "日本薬学会": "https://www.pharm.or.jp/",
+  "日本物理学会": "https://www.jps.or.jp/",
+  "日本光学会": "https://myosj.or.jp/",
+  "日本液晶学会": "https://jlcs.jp/",
+  "日本薬理学会": "https://pharmacol.or.jp/",
+  "日本心理臨床学会": "https://www.ajcp.info/",
+  "日本消化器外科学会": "https://www.jsgs.or.jp/",
+  "日本癌治療学会": "https://www.jsco.or.jp/",
+  "日本糖尿病学会": "https://www.jds.or.jp/",
+  "日本癌学会": "https://www.jca.gr.jp/",
+  "日本産科婦人科学会": "https://www.jsog.or.jp/",
+  "日本透析医学会": "https://www.jsdt.or.jp/",
+  "空気調和・衛生工学会": "https://www.shasej.org/",
+  "日本内視鏡外科学会": "https://www.jses.or.jp/",
+  "日本精神神経学会": "https://www.jspn.or.jp/",
+  "日本眼科学会": "https://www.nichigan.or.jp/",
+  "日本超音波医学会": "https://www.jsum.or.jp/",
+  "日本医療薬学会": "https://www.jsphcs.jp/",
+  "日本臨床細胞学会": "https://jscc.or.jp/",
+  "日本骨粗鬆症学会": "http://www.josteo.com/",
+  "日本口腔インプラント学会": "https://www.shika-implant.org/",
+  "日本麻酔科学会": "https://anesth.or.jp/",
+  "日本農芸化学会": "https://www.jsbba.or.jp/",
+  "日本プライマリ・ケア連合学会": "https://www.primarycare-japan.com/",
+  "日本肝臓学会": "https://www.jsh.or.jp/",
+  "日本呼吸器学会": "https://www.jrs.or.jp/",
+  "日本アレルギー学会": "https://www.jsaweb.jp/",
+  "日本感染症学会": "https://www.kansensho.or.jp/",
+  "日本肺癌学会": "https://www.haigan.gr.jp/",
+  "日本皮膚科学会": "https://www.dermatol.or.jp/",
+  "高分子学会": "https://www.spsj.or.jp/",
+  "日本耳鼻咽喉科学会": "https://www.jibika.or.jp/",
+  "日本リウマチ学会": "https://www.ryumachi-jp.com/",
+  "日本救急医学会": "https://www.jaam.jp/",
+  "日本緩和医療学会": "https://www.jspm.ne.jp/",
+  "日本口腔外科学会": "https://www.jsoms.or.jp/",
+  "日本神経学会": "https://www.neurology-jp.org/",
+  "日本腎臓学会": "https://jsn.or.jp/",
+  "日本東洋医学会": "http://www.jsom.or.jp/",
+  "日本乳癌学会": "https://www.jbcs.gr.jp/",
+  "日本脳神経外科学会": "https://jns-official.jp/",
+  "日本分析化学会": "https://www.jsac.jp/",
+  "地盤工学会": "https://www.jiban.or.jp/",
+  "日本歯周病学会": "https://www.perio.jp/",
+  "日本泌尿器科学会": "https://www.urol.or.jp/",
+  "日本コンクリート工学会": "https://www.jci-net.or.jp/",
+  "日本公衆衛生学会": "https://www.jsph.jp/",
+  "日本生化学会": "https://www.jbsoc.or.jp/",
+  "日本LD学会": "https://www.jald.or.jp/",
+  "日本鉄鋼協会": "https://www.isij.or.jp/",
+  "日本医学放射線学会": "https://www.radiology.jp/",
+  "日本顎咬合学会": "https://ago.ac/",
+  "日本臨床腫瘍学会": "https://www.jsmo.or.jp/",
+  "日本集中治療医学会": "https://jsicm.org/",
+  "日本胸部外科学会": "https://www.jpats.org/",
+  "日本心理学会": "https://psych.or.jp/",
+  "日本病態栄養学会": "https://www.eiyou.or.jp/",
+  "日本血液学会": "https://www.jshem.or.jp/",
+  "日本原子力学会": "https://www.aesj.net/",
+  "日本呼吸器内視鏡学会": "https://www.jsre.org/",
+  "日本内分泌学会": "https://www.j-endo.jp/",
+  "日本産業衛生学会": "https://www.sanei.or.jp/",
+  "日本大腸肛門病学会": "https://www.coloproctology.gr.jp/",
+  "日本輸血・細胞治療学会": "https://yuketsu.jstmct.or.jp/",
+  "日本病理学会": "http://pathology.or.jp/",
+  "日本法医学会": "http://www.jslm.jp/",
+  "日本解剖学会": "http://www.anatomy.or.jp/",
+  "日本頭頸部外科学会": "https://www.jshns.org/",
+  "日本化学療法学会": "http://www.chemotherapy.or.jp/",
+  "日本補綴歯科学会": "https://hotetsu.com/",
+  "日本医療機器学会": "https://www.jsmi.gr.jp/",
+  "日本看護科学学会": "https://www.jans.or.jp/",
+  "日本老年医学会": "https://www.jpn-geriat-soc.or.jp/",
+  "日本再生医療学会": "https://www.jsrm.jp/",
+  "日本認知症学会": "https://dementia-japan.org/",
+  "日本人類遺伝学会": "https://jshg.jp/",
+  "日本矯正歯科学会": "https://www.jos.gr.jp/",
+  "日本災害医学会": "https://jadm.or.jp/",
+  "日本脳卒中学会": "https://www.jsts.gr.jp/",
+  "日本生殖医学会": "http://www.jsrm.or.jp/",
+  "日本形成外科学会": "https://jsprs.or.jp/",
+  "計測自動制御学会": "https://www.sice.jp/",
+  "照明学会": "https://www.ieij.or.jp/",
+  "日本数学会": "https://www.mathsoc.jp/",
+  "人工知能学会": "https://www.ai-gakkai.or.jp/",
+  "日本図書館情報学会": "https://jslis.jp/",
+  "日本ロボット学会": "https://www.rsj.or.jp/",
+  "日本都市計画学会": "https://www.cpij.or.jp/",
+  "日本高血圧学会": "https://www.jpnsh.jp/",
+  "日本リハビリテーション医学会": "http://www.jarm.or.jp/",
+  "日本周産期・新生児医学会": "http://www.jspnm.com/",
+  "日本造血・免疫細胞療法学会": "https://www.jstct.or.jp/",
+  "日本農村医学会": "http://www.jarm.jp/",
+  "日本女性医学学会": "http://www.jmwh.jp/",
+  "日本婦人科腫瘍学会": "https://jsgo.or.jp/",
+  "日本心臓血管外科学会": "https://jscvs.or.jp/",
+  "日本口腔科学会": "http://stomatol.umin.jp/",
+  "日本人工臓器学会": "http://www.jsao.org/",
+  "日本栄養・食糧学会": "http://www.jsnfs.or.jp/",
+  "日本脊椎脊髄病学会": "http://www.jssr.gr.jp/",
+  "日本血管外科学会": "http://www.jsvs.org/",
+  "日本小児神経学会": "https://www.childneuro.jp/",
+  "日本臨床神経生理学会": "http://jscn.umin.ac.jp/index.html",
+  "日本結核・非結核性抗酸菌症学会": "http://www.kekkaku.gr.jp/",
+  "日本医療情報学会": "http://www.jami.jp/",
+  "日本磁気共鳴医学会": "https://www.jsmrm.jp/",
+  "日本核医学会": "http://www.jsnm.org/",
+  "日本インターベンショナルラジオロジー学会": "http://www.jsir.or.jp/",
+  "日本手外科学会": "http://www.jssh.or.jp/",
+  "日本肝胆膵外科学会": "http://www.jshbps.jp/",
+  "日本免疫学会": "http://www.jsi-men-eki.org/",
+  "日本移植学会": "http://www.asas.or.jp/jst/",
+  "日本呼吸器外科学会": "http://jacsurg.gr.jp/",
+  "日本てんかん学会": "https://square.umin.ac.jp/jes/",
+  "日本食道学会": "https://www.esophagus.jp/",
+  "日本医学教育学会": "http://jsme.umin.ac.jp/",
+  "日本甲状腺学会": "https://www.japanthyroid.jp/",
+  "日本臨床検査医学会": "http://www.jslm.org/",
+  "日本脈管学会": "http://www.j-ca.org/",
+  "日本老年精神医学会": "http://www.rounen.org/",
+  "日本小児循環器学会": "http://jspccs.jp/",
+  "日本生理学会": "http://physiology.jp/",
+  "日本疫学会": "http://jeaweb.jp/",
+  "日本肥満学会": "http://www.jasso.or.jp/",
+  "日本臨床薬理学会": "http://www.jscpt.jp/",
+  "日本気管食道科学会": "http://www.kishoku.gr.jp/",
+  "日本心身医学会": "http://www.shinshin-igaku.com/",
+  "日本小児血液・がん学会": "https://www.jspho.org/",
+  "日本放射線腫瘍学会": "http://www.jastro.or.jp/",
+  "日本動脈硬化学会": "http://www.j-athero.org/",
+  "日本小児外科学会": "http://www.jsps.or.jp/",
+  "日本細菌学会": "http://jsbac.org/",
+  "日本内分泌外科学会": "http://jaes.umin.jp/",
+  "日本骨代謝学会": "http://jsbmr.umin.jp/",
+  "日本温泉気候物理医学会": "http://www.onki.jp/",
+  "日本ウイルス学会": "http://jsv.umin.jp/",
+  "日本生体医工学会": "http://jsmbe.org/",
+  "日本アフェレシス学会": "http://www.apheresis-jp.org/",
+  "日本職業・災害医学会": "http://www.jsomt.jp/",
+  "日本臨床免疫学会": "https://www.jsci73.net/",
+  "日本衛生学会": "http://www.nihon-eisei.org/",
+  "日本血栓止血学会": "http://www.jsth.org/",
+  "日本レーザー医学会": "http://www.jslsm.or.jp/",
+  "日本医療・病院管理学会": "http://www.jsha.gr.jp/",
+  "日本矯正医学会": "http://jacm.umin.jp/",
+  "日本国際保健医療学会": "https://jagh.or.jp/",
+  "日本口腔衛生学会": "http://www.kokuhoken.or.jp/jsdh/",
+  "日本歯科理工学会": "https://www.jsdmd.jp/",
+  "日本歯科放射線学会": "https://www.jsomfr.org/",
+  "日本小児歯科学会": "https://www.jspd.or.jp/",
+  "日本障害者歯科学会": "https://www.jsdh.jp/",
+  "日本老年歯科医学会": "https://www.gerodontology.jp/",
+  "日本歯科医学教育学会": "https://jdea.jp/",
+  "日本顎関節学会": "https://kokuhoken.net/jstmj/",
+  "日本歯内療法学会": "https://jea-endo.or.jp/",
+  "日本有病者歯科医療学会": "https://www.jjmcp.jp/",
+  "日本歯科基礎医学会": "https://www.jaob.jp/",
+  "日本口腔腫瘍学会": "https://jsoo.org/",
+  "日本歯科審美学会": "https://www.jdshinbi.net/",
+  "日本歯科医療管理学会": "https://www.jsdpa.gr.jp/",
+  "日本顎変形症学会": "https://jaw-deform.jp/",
+  "日本顎顔面インプラント学会": "https://www.jamfi.net/",
+  "日本外傷歯学会": "https://www.ja-dt.org/",
+  "日本口腔診断学会": "http://www.jsodom.org/",
+  "日本地質学会": "https://geosociety.jp/",
+  "日本地震学会": "https://www.zisin.jp/",
+  "日本気象学会": "https://www.metsoc.jp/",
+  "日本天文学会": "https://www.asj.or.jp/",
+  "日本地理学会": "https://www.ajg.or.jp/",
+  "日本海洋学会": "https://kaiyo-gakkai.jp/jos/",
+  "日本生態学会": "http://www.esj.ne.jp/esj/",
+  "日本動物学会": "http://www.zoology.or.jp/",
+  "日本植物学会": "https://bsj.or.jp/",
+  "日本遺伝学会": "https://gsj3.org/",
+  "日本分子生物学会": "https://www.mbsj.jp/",
+  "日本水産学会": "https://jsfs.jp/",
+  "日本獣医学会": "https://www.jsvetsci.jp/",
+  "日本森林学会": "https://www.forestry.jp/",
+  "日本育種学会": "http://jsbreeding.jp/",
+  "日本経済学会": "https://www.jeaweb.org/",
+  "日本社会学会": "https://jss-sociology.org/",
+  "日本哲学会": "https://philosophy-japan.org/",
+  "日本宗教学会": "http://jpars.org/",
+  "日本倫理学会": "http://jse.trustyweb.jp/",
+  "日本言語学会": "https://ls-japan.jpn.org/",
+  "日本フランス語フランス文学会": "https://www.sjllf.org/",
+  "日本英語学会": "https://elsj.jp/",
+  "日本商業学会": "https://jsmd.jp/",
+  "日本経営学会": "https://keiei-gakkai.jp/",
+  "日本国際政治学会": "https://jair.or.jp/",
+  "日本公共政策学会": "https://ppsa.jp/",
+  "日本私法学会": "https://japl.jp/",
+  "日本文化人類学会": "https://www.jasca.org/",
+  "日本社会福祉学会": "https://www.jssw.jp/",
+  "日本家族社会学会": "https://www.jsfs-familysociology.org/",
+  "日本教育学会": "https://www.jera.jp/",
+  "日本統計学会": "https://www.jss.gr.jp/",
+  "日本政治学会": "https://www.jpsa-web.org/",
+  "史学会": "http://www.shigakukai.or.jp/",
+  "歴史学研究会": "https://rekiken.jp/",
+  "日本造園学会": "https://www.jila-zouen.org/",
+  "日本畜産学会": "https://www.jsas-org.jp/",
+  "電気化学会": "https://www.electrochem.jp/",
+  "日本セラミックス協会": "https://www.ceramic.or.jp/",
+  "日本生物物理学会": "https://www.biophys.jp/",
+  "日本航空宇宙学会": "https://www.jsass.or.jp/",
+  "日本体力医学会": "https://plaza.umin.ac.jp/jspfsm/",
+  "日本冷凍空調学会": "https://www.jsrae.or.jp/",
+  "日本歯科保存学会": "https://www.hozon.or.jp/",
+  "日本臨床歯周病学会": "https://www.jacp.net/",
+  "日本健康心理学会": "https://kenkoshinri.jp/",
+  "日本学生相談学会": "http://www.gakuseisodan.com/",
+  "日本質的心理学会": "http://www.jaqp.jp/",
+  "日本応用心理学会": "http://j-aap.jp/",
+  "産業・組織心理学会": "http://www.jaiop.jp",
+  "日本学校心理学会": "http://schoolpsychology.jp",
+  "日本行動分析学会": "http://www.j-aba.jp/",
+  "社会経済史学会": "https://sehsjp.org/",
+  "社会政策学会": "https://jasps.org/",
+  "日本会計研究学会": "https://jaa-net.jp/",
+  "日本金融学会": "https://www.jsmeweb.org/",
+  "日本史研究会": "https://www.nihonshiken.jp/",
+  "日本看護研究学会": "https://www.jsnr.jp/",
+  "日本胃癌学会": "https://www.jgca.jp/",
+  "日本ペインクリニック学会": "https://www.jspc.gr.jp/",
+  "日本睡眠学会": "https://jssr.jp/",
+  "日本臨床スポーツ医学会": "https://www.rinspo.jp/",
+  "日本脳神経血管内治療学会": "https://jsnet.website/",
+  "日本教育工学会": "https://www.jset.gr.jp/",
+  "日本土壌肥料学会": "https://jssspn.jp/",
+  "日本木材学会": "https://www.jwrs.org/",
+  "日本家政学会": "https://jshe.jp/",
+  "日本食品科学工学会": "https://www.jsfst.or.jp/",
+  "日本食品衛生学会": "https://shokuhineisei.or.jp/",
+  "日本応用数理学会": "https://jsiam.org/",
+  "日本作物学会": "https://cropscience.jp/",
+  "日本熱傷学会": "https://www.jsbi-burn.org/",
+  "日本農業経済学会": "https://www.aesjapan.or.jp/",
+  "アメリカ学会": "https://www.jaas.gr.jp/",
+  "日本中東学会": "https://www.james1985.org/",
+  "日本アフリカ学会": "https://african-studies.com/",
+  "日本台湾学会": "https://jats.gr.jp/",
+  "日本カナダ学会": "https://www.jacs.jp/",
+  "現代韓国朝鮮学会": "http://www.ackj.org/",
+  "アジア政経学会": "https://www.jaas.or.jp/",
+  "日本スポーツ歯科医学会": "https://kokuhoken.net/jasd/",
+  "日本薬剤学会": "https://www.apstj.jp/",
+  "組織学会": "https://www.aaos.or.jp/",
+  "日本公法学会": "https://www.asas.or.jp/publiclaw/",
+  "日本刑法学会": "https://clsj.jp/",
+  "比較法学会": "https://www.asas.or.jp/jscl/",
+  "環境経済・政策学会": "https://www.seeps.org/",
+  "大気環境学会": "https://www.jsae-net.org/",
+  "日本水環境学会": "https://www.jswe.or.jp/",
+  "環境社会学会": "https://jaes.jp/",
+  "廃棄物資源循環学会": "https://jsmcwm.or.jp/",
+  "日本歴史学会": "https://www.yoshikawa-k.co.jp/nihonrekishi",
+};
+LEAVES.forEach(l => { l.url = OFFICIAL_URLS[l.name] || null; });
+
+const totalMembers = d3.sum(LEAVES, d=>d.value);
+const totalSocieties = LEAVES.length;
+document.getElementById("totalCountLbl").textContent = totalSocieties;
+document.getElementById("footerCount").textContent = totalSocieties;
+
+// ===== color system: each bu has a muted hue band; each field gets a hue+lightness step within that band (refined, low-saturation palette) =====
+const BU_HUE_RANGE = { 1: [-8, 22], 2: [140, 172], 3: [210, 248] };
+const BU_SAT = { 1: 0.34, 2: 0.22, 3: 0.26 };
+const fieldColor = {};
+[1,2,3].forEach(bu=>{
+  const fs = FIELDS.filter(f=>f.bu===bu);
+  const [h0,h1] = BU_HUE_RANGE[bu];
+  const sat = BU_SAT[bu];
+  fs.forEach((f,i)=>{
+    const t = fs.length>1 ? i/(fs.length-1) : 0.5;
+    const hue = h0 + (h1-h0)*t;
+    const light = 78 - (i%2===0 ? 0 : 5) - t*12; // gentle zigzag so neighbours don't blend
+    fieldColor[f.name] = d3.hsl(hue, sat, Math.max(62,light)/100).formatHex();
+  });
+});
+const buColor = {
+  1: d3.hsl(8, 0.30, 0.40).formatHex(),
+  2: d3.hsl(155, 0.20, 0.34).formatHex(),
+  3: d3.hsl(225, 0.26, 0.38).formatHex()
+};
+
+// stat row
+const namedCount = LEAVES.filter(d=>d.value===80).length;
+const countedCount = totalSocieties - namedCount;
+const statRow = d3.select("#statRow");
+[
+  [totalSocieties.toString(), "収録学会数"],
+  [countedCount.toString(), "会員数を確認できた団体"],
+  [namedCount.toString(), "名称のみ収録の団体"],
+  ["105,000", "最大：日本内科学会"]
+].forEach(([num,lbl]) => {
+  const s = statRow.append("div").attr("class","stat");
+  s.append("div").attr("class","num").text(num);
+  s.append("div").attr("class","lbl").text(lbl);
+});
+
+// ===== state =====
+let mode = "bu";          // grouping granularity for the chart: "bu" | "field"
+let viewMode = "overview"; // "overview" | "drill"
+let drillBu = null;        // 1 | 2 | 3 (when viewMode==="drill")
+let drillField = null;     // field name (when viewMode==="drill")
+let activeGroup = null;
+let searchTerm = "";
+
+const svg = d3.select("#chart");
+const tooltip = d3.select("#tooltip");
+const legendDiv = d3.select("#legend");
+const legendTitle = d3.select("#legendTitle");
+const breadcrumb = d3.select("#breadcrumb");
+const pillsRow = document.getElementById("tabsFieldPills");
+const overviewSubRow = document.getElementById("tabsOverviewSub");
+
+function fieldsOfBu(bu){ return FIELDS.filter(f=>f.bu===bu); }
+function fieldStat(fieldName){
+  const items = LEAVES.filter(l=>l.field===fieldName);
+  return {count: items.length, sum: d3.sum(items, d=>d.value)};
+}
+function defaultFieldForBu(bu){
+  const fs = fieldsOfBu(bu).map(f=>({name:f.name, ...fieldStat(f.name)}));
+  fs.sort((a,b)=>b.sum-a.sum);
+  return fs[0].name;
+}
+function currentSourceLeaves(){
+  return viewMode === "drill" ? LEAVES.filter(l=>l.field===drillField) : LEAVES;
+}
+
+function groupKeyOf(leaf){ return mode === "bu" ? String(leaf.bu) : leaf.field; }
+function groupLabelOf(leaf){ return mode === "bu" ? BU_INFO[leaf.bu].name : leaf.field; }
+function groupColorOf(leaf){ return mode === "bu" ? buColor[leaf.bu] : fieldColor[leaf.field]; }
+
+function buildHierarchyData(leavesArr){
+  leavesArr = leavesArr || LEAVES;
+  const groups = d3.groups(leavesArr, d => groupKeyOf(d));
+  // preserve official order
+  let orderedKeys;
+  if (mode === "bu"){ orderedKeys = ["1","2","3"]; }
+  else { orderedKeys = FIELDS.map(f=>f.name); }
+  const groupMap = new Map(groups);
+  const children = orderedKeys.filter(k=>groupMap.has(k)).map(key=>{
+    const items = groupMap.get(key);
+    const sample = items[0];
+    return {
+      key: key,
+      name: groupLabelOf(sample),
+      color: groupColorOf(sample),
+      count: items.length,
+      sum: d3.sum(items, d=>d.value),
+      children: items.map(d=>({name:d.name, value:d.value, field:d.field, bu:d.bu, url:d.url}))
+    };
+  });
+  return {name:"root", children};
+}
+
+function renderLegend(){
+  legendTitle.text("30分野インデックス（クリックでその分野の拡大マップへ）");
+  legendDiv.html("");
+  [1,2,3].forEach(bu=>{
+    legendDiv.append("div").attr("class","legend-bu-head").text(BU_INFO[bu].name);
+    fieldsOfBu(bu).forEach(f=>{
+      const stat = fieldStat(f.name);
+      appendLegendRow({key:f.name, name:f.name, color:fieldColor[f.name], count:stat.count, sum:stat.sum});
+    });
+  });
+}
+
+let listSearchTerm = "";
+function renderListView(){
+  const out = document.getElementById("listOutput");
+  out.innerHTML = "";
+  const term = listSearchTerm.trim().toLowerCase();
+  let totalShown = 0;
+
+  const meta = document.createElement("div");
+  meta.className = "list-meta-row";
+  out.appendChild(meta);
+
+  [1,2,3].forEach(bu=>{
+    const buDiv = document.createElement("div");
+    buDiv.className = "list-bu";
+    buDiv.id = "list-bu-" + bu;
+    buDiv.innerHTML = `<div class="list-bu-title">${BU_INFO[bu].name}</div>`;
+    let buHasMatch = false;
+    fieldsOfBu(bu).forEach(f=>{
+      const items = LEAVES.filter(d=>d.field===f.name).slice().sort((a,b)=>b.value-a.value);
+      const matched = term ? items.filter(d=>d.name.toLowerCase().includes(term)) : items;
+      if (matched.length===0) return;
+      buHasMatch = true;
+      totalShown += matched.length;
+      const fieldDiv = document.createElement("div");
+      fieldDiv.className = "list-field";
+      fieldDiv.innerHTML = `<div class="list-field-title"><span class="swatch" style="background:${fieldColor[f.name]}"></span>${f.name}<span class="cnt">${matched.length}団体</span></div>`;
+      const rowsDiv = document.createElement("div");
+      rowsDiv.className = "list-rows";
+      matched.forEach(d=>{
+        const isNameOnly = d.value === 80;
+        const valHtml = isNameOnly
+          ? `<span class="ln-val faint">非公表</span>`
+          : `<span class="ln-val">約${d.value.toLocaleString()}名</span>`;
+        const nameHtml = d.url
+          ? `<a href="${d.url}" target="_blank" rel="noopener noreferrer">${d.name} ↗</a>`
+          : d.name;
+        const row = document.createElement("div");
+        row.className = "list-row";
+        row.innerHTML = `<div class="ln-name">${nameHtml}</div>${valHtml}`;
+        rowsDiv.appendChild(row);
+      });
+      fieldDiv.appendChild(rowsDiv);
+      buDiv.appendChild(fieldDiv);
+    });
+    if (buHasMatch) out.appendChild(buDiv);
+  });
+
+  meta.textContent = term
+    ? `「${listSearchTerm}」に一致：${totalShown}団体`
+    : `全${LEAVES.length}団体（会員数の多い順、各分野内）`;
+
+  if (totalShown === 0){
+    out.innerHTML = "";
+    out.appendChild(meta);
+    meta.textContent = `「${listSearchTerm}」に一致する学会は見つかりませんでした。`;
+    const empty = document.createElement("div");
+    empty.className = "list-empty";
+    empty.textContent = "条件を変えて再度お試しください。";
+    out.appendChild(empty);
+  }
+}
+
+function appendLegendRow(g){
+  const isActive = (viewMode==="drill" && drillField===g.key);
+  const row = legendDiv.append("div")
+    .attr("class","legend-item")
+    .classed("active", isActive)
+    .on("click", () => { goToField(g.key); });
+  row.append("div").attr("class","swatch").style("background", g.color);
+  row.append("div").attr("class","legend-name").text(g.name);
+  row.append("div").attr("class","legend-meta").html(`${g.count}団体<br>約${(g.sum/10000).toFixed(1)}万名`);
+}
+
+// ===== navigation =====
+function setMainTabActive(){
+  document.querySelectorAll("#tabsMain .tab-btn").forEach(b=>{
+    const isOverview = b.dataset.view === "overview";
+    const isList = b.dataset.view === "list";
+    if (viewMode === "list"){ b.classList.toggle("active", isList); }
+    else if (viewMode === "overview"){ b.classList.toggle("active", isOverview); }
+    else { b.classList.toggle("active", Number(b.dataset.bu)===drillBu); }
+  });
+  overviewSubRow.style.display = viewMode==="overview" ? "flex" : "none";
+  pillsRow.style.display = viewMode==="drill" ? "flex" : "none";
+  document.getElementById("layoutMain").style.display = viewMode==="list" ? "none" : "flex";
+  document.getElementById("listView").style.display = viewMode==="list" ? "block" : "none";
+}
+
+function renderPills(){
+  pillsRow.innerHTML = "";
+  fieldsOfBu(drillBu).forEach(f=>{
+    const stat = fieldStat(f.name);
+    const btn = document.createElement("button");
+    btn.className = "pill" + (f.name===drillField ? " active" : "");
+    btn.innerHTML = `<span class="dot" style="background:${fieldColor[f.name]}"></span>${f.name}<span class="badge">${stat.count}</span>`;
+    btn.addEventListener("click", ()=>{ drillField = f.name; afterNav(); });
+    pillsRow.appendChild(btn);
+  });
+}
+
+function updateBreadcrumb(){
+  if (viewMode === "drill"){
+    breadcrumb.style("display","block").html(
+      `<a id="bcAll">全体</a><span class="sep">›</span><a id="bcBu">${BU_INFO[drillBu].name}</a><span class="sep">›</span><span class="cur">${drillField}</span>`
+    );
+    document.getElementById("bcAll").addEventListener("click", goToOverview);
+    document.getElementById("bcBu").addEventListener("click", ()=>{ goToBu(drillBu); });
+  } else {
+    breadcrumb.style("display","none").html("");
+  }
+}
+
+function goToOverview(){
+  viewMode = "overview"; mode = "bu"; activeGroup = null;
+  document.querySelectorAll("#tabsOverviewSub .tab-btn").forEach(b=>b.classList.toggle("active", b.dataset.mode==="bu"));
+  afterNav();
+}
+function goToBu(bu){
+  viewMode = "drill"; drillBu = bu; drillField = defaultFieldForBu(bu); mode = "field"; activeGroup = null;
+  afterNav();
+}
+function goToField(fieldName){
+  viewMode = "drill"; drillBu = fieldBu[fieldName]; drillField = fieldName; mode = "field"; activeGroup = null;
+  afterNav();
+}
+function goToList(){
+  viewMode = "list"; activeGroup = null;
+  afterNav();
+}
+function afterNav(){
+  setMainTabActive();
+  if (viewMode==="drill") renderPills();
+  updateBreadcrumb();
+  if (viewMode==="list"){ renderListView(); }
+  else { render(); renderLegend(); }
+}
+
+function render(){
+  const wrap = document.getElementById("chart-wrap");
+  const width = wrap.clientWidth - 20;
+  const height = Math.max(560, Math.min(820, width * 0.62));
+
+  svg.attr("viewBox", `0 0 ${width} ${height}`);
+  svg.selectAll("*").remove();
+
+  const data = buildHierarchyData(currentSourceLeaves());
+  const root = d3.hierarchy(data)
+    .sum(d => d.value)
+    .sort((a,b) => b.value - a.value);
+
+  d3.treemap()
+    .tile(d3.treemapSquarify)
+    .size([width, height])
+    .paddingOuter(3)
+    .paddingTop(d => d.depth === 1 ? (mode==="field" ? 15 : 25) : 0)
+    .paddingInner(d => d.depth === 0 ? (mode==="bu"?6:3) : 2)
+    .round(true)(root);
+
+  // group background panels
+  const groupNode = svg.selectAll(".groupnode")
+    .data(root.children)
+    .join("g").attr("class","groupnode");
+
+  groupNode.append("rect")
+    .attr("x", d=>d.x0).attr("y", d=>d.y0)
+    .attr("width", d=>Math.max(0,d.x1-d.x0)).attr("height", d=>Math.max(0,d.y1-d.y0))
+    .attr("fill", d=>d.data.color).attr("fill-opacity", 0.10).attr("rx", 3);
+
+  const head = svg.selectAll(".grouphead")
+    .data(root.children)
+    .join("g").attr("class","grouphead")
+    .on("click", (event,d) => {
+      activeGroup = (activeGroup === d.data.key) ? null : d.data.key;
+      updateHighlight(); renderLegend();
+    });
+
+  const headerH = mode === "field" ? 14 : 22;
+  const headerTextY = mode === "field" ? 10.5 : 15.5;
+
+  head.append("rect")
+    .attr("x", d=>d.x0).attr("y", d=>d.y0)
+    .attr("width", d=>Math.max(0,d.x1-d.x0)).attr("height", headerH)
+    .attr("fill", d=>d.data.color).attr("rx", 2);
+
+  head.append("text")
+    .attr("x", d=>d.x0+8).attr("y", d=>d.y0+headerTextY)
+    .attr("font-size", mode==="field" ? 10.5 : 12)
+    .text(d => (d.x1-d.x0) > 60 ? d.data.name : "");
+
+  head.append("text")
+    .attr("class","cnt")
+    .attr("x", d=>d.x1-8).attr("y", d=>d.y0+headerTextY)
+    .attr("text-anchor","end")
+    .attr("font-size", 10)
+    .text(d => (d.x1-d.x0) > 170 ? `${d.data.count}団体・約${(d.data.sum/10000).toFixed(1)}万名` : "");
+
+  // leaves — always colored by field for visual consistency across tabs
+  const leaf = svg.selectAll(".cell")
+    .data(root.leaves())
+    .join("g")
+    .attr("class","cell")
+    .on("mousemove", (event,d) => {
+      const isNameOnly = d.data.value === 80;
+      const share = ((d.data.value / totalMembers) * 100).toFixed(2);
+      const groupShare = ((d.data.value / d.parent.data.sum) * 100).toFixed(1);
+      tooltip
+        .style("opacity", 1)
+        .style("left", (event.clientX + 16) + "px")
+        .style("top", (event.clientY + 12) + "px")
+        .html(isNameOnly ? `
+          <div class="t-name">${d.data.name}</div>
+          <div class="t-group">${d.data.field}（${BU_INFO[d.data.bu].name}）</div>
+          <div style="color:var(--ink-faint)">会員数：非公表（名称のみ収録）</div>
+          ${d.data.url ? `<div class="t-link">🔗 公式サイトあり（クリックで詳細）</div>` : ``}
+        ` : `
+          <div class="t-name">${d.data.name}</div>
+          <div class="t-group">${d.data.field}（${BU_INFO[d.data.bu].name}）</div>
+          <div>会員数: <span class="t-val">約${d.data.value.toLocaleString()}名</span></div>
+          <div>${mode==="bu"?"部内":"分野内"}シェア: ${groupShare}% ／ 全体: ${share}%</div>
+          ${d.data.url ? `<div class="t-link">🔗 公式サイトあり（クリックで詳細）</div>` : ``}
+        `);
+    })
+    .on("mouseleave", () => tooltip.style("opacity", 0))
+    .on("click", (event,d) => showDetail(d));
+
+  leaf.append("rect")
+    .attr("class","leaf")
+    .attr("x", d=>d.x0).attr("y", d=>d.y0)
+    .attr("width", d=>Math.max(0,d.x1-d.x0)).attr("height", d=>Math.max(0,d.y1-d.y0))
+    .attr("rx", d => Math.min(2, (d.x1-d.x0)/8, (d.y1-d.y0)/8))
+    .attr("fill", d=>fieldColor[d.data.field])
+    .attr("fill-opacity", 1);
+
+  leaf.each(function(d,i){
+    const w = d.x1-d.x0, h = d.y1-d.y0;
+    if (w < 34 || h < 20) return;
+    const g = d3.select(this);
+    const pad = 6;
+    const availW = Math.max(10, w - pad*2);
+    const showVal = d.data.value !== 80;
+    const name = d.data.name;
+    const charW = fs => fs * 0.94; // full-width glyphs are close to 1em in this font
+
+    const baseFs = Math.max(10, Math.min(34, Math.min(w,h)/9));
+    const FLOOR_FS = 9;
+    const MAX_LINES = 3;
+
+    function linesFor(fs){
+      const perLine = Math.max(1, Math.floor(availW / charW(fs)));
+      const out = [];
+      for (let i=0; i<name.length; i+=perLine) out.push(name.slice(i, i+perLine));
+      return out;
+    }
+    function maxLinesAllowed(fs, valFs){
+      const lineH = fs * 1.18;
+      const reserved = showVal ? (valFs + 6) : 0;
+      const availH = h - pad*2 - reserved;
+      return Math.max(1, Math.min(MAX_LINES, Math.floor(availH / lineH)));
+    }
+
+    // shrink font step by step until the full name fits within the allowed number of lines
+    let chosenFs = FLOOR_FS, lines = null;
+    for (let fs = baseFs; fs >= FLOOR_FS; fs -= 0.5){
+      const valFs = Math.max(8.5, Math.min(20, fs*0.62));
+      const allowed = maxLinesAllowed(fs, valFs);
+      const full = linesFor(fs);
+      if (full.length <= allowed){ chosenFs = fs; lines = full; break; }
+    }
+    if (!lines){
+      // even at floor size it doesn't fully fit: use floor size, fill the allowed lines, ellipsize the rest
+      const valFs0 = Math.max(8.5, Math.min(20, FLOOR_FS*0.62));
+      const allowed = maxLinesAllowed(FLOOR_FS, valFs0);
+      const full = linesFor(FLOOR_FS);
+      lines = full.slice(0, allowed);
+      if (full.length > allowed){
+        let last = lines[lines.length-1];
+        last = last.slice(0, Math.max(1, last.length-1)) + "…";
+        lines[lines.length-1] = last;
+      }
+      chosenFs = FLOOR_FS;
+    }
+
+    const valFs = Math.max(8.5, Math.min(20, chosenFs*0.62));
+    const lineH = chosenFs * 1.18;
+    const firstBaseline = d.y0 + pad + chosenFs*0.85;
+
+    // clip to the cell's own rectangle so a label can never visually spill into a neighboring cell
+    const clipId = "lbl-clip-" + i;
+    g.append("clipPath").attr("id", clipId)
+      .append("rect")
+      .attr("x", d.x0).attr("y", d.y0)
+      .attr("width", w).attr("height", h);
+    const labelGroup = g.append("g").attr("clip-path", `url(#${clipId})`);
+
+    const nameText = labelGroup.append("text").attr("class","lbl-name").attr("font-size", chosenFs);
+    lines.forEach((ln,li)=>{
+      nameText.append("tspan")
+        .attr("x", d.x0+pad)
+        .attr("y", firstBaseline + li*lineH)
+        .text(ln);
+    });
+
+    if (showVal){
+      const valY = firstBaseline + (lines.length-1)*lineH + valFs + 5;
+      if (valY <= d.y0 + h - 3){
+        labelGroup.append("text").attr("class","lbl-val")
+          .attr("x", d.x0+pad).attr("y", valY)
+          .attr("font-size", valFs).text(`約${d.data.value.toLocaleString()}名`);
+      }
+    }
+  });
+
+  updateHighlight();
+}
+
+function updateHighlight(){
+  const term = searchTerm.trim();
+  svg.selectAll(".cell rect.leaf, .cell text")
+    .classed("dim", d => {
+      const groupMismatch = activeGroup && groupKeyOf(d.data) !== activeGroup;
+      const searchMismatch = term && !d.data.name.includes(term);
+      return groupMismatch || searchMismatch;
+    });
+  svg.selectAll(".groupnode rect, .grouphead")
+    .classed("dim", d => activeGroup && d.data.key !== activeGroup);
+}
+
+function showDetail(d){
+  const isNameOnly = d.data.value === 80;
+  const urlRow = d.data.url ? `<a class="d-link" href="${d.data.url}" target="_blank" rel="noopener noreferrer">公式サイトを見る ↗</a>` : `<div class="d-nolink">公式サイト：未確認</div>`;
+  if (isNameOnly){
+    d3.select("#detail").html(`
+      <div class="d-name">${d.data.name}</div>
+      <div class="d-group" style="color:${fieldColor[d.data.field]}">● ${d.data.field}（${BU_INFO[d.data.bu].name}）</div>
+      <div class="d-row"><span class="k">会員数</span><span class="v" style="color:var(--ink-faint)">非公表</span></div>
+      <div class="d-row"><span class="k">収録区分</span><span class="v">名称のみ（学会名鑑登録団体）</span></div>
+      ${urlRow}
+    `);
+    return;
+  }
+  const share = ((d.data.value / totalMembers) * 100).toFixed(2);
+  const groupShare = ((d.data.value / d.parent.data.sum) * 100).toFixed(1);
+  const ranked = d.parent.children.slice().sort((a,b)=>b.data.value-a.data.value);
+  const rank = ranked.findIndex(x => x.data.name === d.data.name) + 1;
+  d3.select("#detail").html(`
+    <div class="d-name">${d.data.name}</div>
+    <div class="d-group" style="color:${fieldColor[d.data.field]}">● ${d.data.field}（${BU_INFO[d.data.bu].name}）</div>
+    <div class="d-row"><span class="k">会員数（概数）</span><span class="v">約${d.data.value.toLocaleString()}名</span></div>
+    <div class="d-row"><span class="k">${mode==="bu"?"部内":"分野内"}ランク</span><span class="v">${rank} / ${d.parent.children.length}</span></div>
+    <div class="d-row"><span class="k">${mode==="bu"?"部内":"分野内"}シェア</span><span class="v">${groupShare}%</span></div>
+    <div class="d-row"><span class="k">全体シェア</span><span class="v">${share}%</span></div>
+    ${urlRow}
+  `);
+}
+
+// ===== controls =====
+document.querySelectorAll("#tabsMain .tab-btn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    if (btn.dataset.view === "overview") goToOverview();
+    else if (btn.dataset.view === "list") goToList();
+    else goToBu(Number(btn.dataset.bu));
+  });
+});
+document.querySelectorAll("#tabsOverviewSub .tab-btn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll("#tabsOverviewSub .tab-btn").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    mode = btn.dataset.mode;
+    activeGroup = null;
+    render(); renderLegend();
+  });
+});
+
+document.getElementById("search").addEventListener("input", (e) => {
+  searchTerm = e.target.value;
+  activeGroup = null;
+  updateHighlight();
+});
+document.getElementById("resetBtn").addEventListener("click", () => {
+  searchTerm = ""; activeGroup = null;
+  document.getElementById("search").value = "";
+  updateHighlight(); renderLegend();
+});
+
+document.getElementById("searchList").addEventListener("input", (e) => {
+  listSearchTerm = e.target.value;
+  renderListView();
+});
+document.getElementById("resetBtnList").addEventListener("click", () => {
+  listSearchTerm = "";
+  document.getElementById("searchList").value = "";
+  renderListView();
+});
+document.querySelectorAll("#tabsListBu .tab-btn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    const target = document.getElementById("list-bu-" + btn.dataset.jump);
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+});
+
+render();
+renderLegend();
+let resizeTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(render, 150);
+});
+</script>
+</body>
+</html>
